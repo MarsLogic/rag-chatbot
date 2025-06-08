@@ -8,10 +8,6 @@ import { eq, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const botRouter = createTRPCRouter({
-  /**
-   * Fetches a single bot by its ID.
-   * Ensures the user owns the bot.
-   */
   byId: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -26,9 +22,6 @@ export const botRouter = createTRPCRouter({
       return bot;
     }),
 
-  /**
-   * Fetches all bots for the current logged-in user.
-   */
   list: protectedProcedure.query(({ ctx }) => {
     return ctx.db.query.bots.findMany({
       where: eq(bots.userId, ctx.session.user.id),
@@ -36,9 +29,6 @@ export const botRouter = createTRPCRouter({
     });
   }),
 
-  /**
-   * Creates a new bot for the current user.
-   */
   create: protectedProcedure
     .input(z.object({ name: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
@@ -48,14 +38,37 @@ export const botRouter = createTRPCRouter({
         name: input.name,
         userId: ctx.session.user.id,
       });
-      // CORRECTED: Return the name along with the id
       return { id: newBotId, name: input.name };
     }),
 
-  /**
-   * Creates a document record in the database after a file has been
-   * successfully uploaded to the blob store.
-   */
+  // ---- ADD THIS NEW PROCEDURE ----
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1),
+        description: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify user owns the bot they are trying to update
+      const [bot] = await ctx.db.select().from(bots).where(eq(bots.id, input.id));
+      if (!bot || bot.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      const [updatedBot] = await ctx.db
+        .update(bots)
+        .set({
+          name: input.name,
+          description: input.description,
+        })
+        .where(eq(bots.id, input.id))
+        .returning();
+      
+      return updatedBot;
+    }),
+
   createDocument: protectedProcedure
     .input(
       z.object({
