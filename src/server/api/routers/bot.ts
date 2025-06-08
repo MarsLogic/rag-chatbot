@@ -11,13 +11,8 @@ export const botRouter = createTRPCRouter({
   byId: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const [bot] = await ctx.db
-        .select()
-        .from(bots)
-        .where(eq(bots.id, input.id));
-
-      // This check is inside a protectedProcedure, so user is guaranteed to exist.
-      if (!bot || bot.userId !== ctx.session.user.id) {
+      const [bot] = await ctx.db.select().from(bots).where(eq(bots.id, input.id));
+      if (!bot || bot.userId !== ctx.session.user.id!) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       return bot;
@@ -25,8 +20,6 @@ export const botRouter = createTRPCRouter({
 
   list: protectedProcedure.query(({ ctx }) => {
     return ctx.db.query.bots.findMany({
-      // The `!` tells TypeScript to trust us that `ctx.session.user.id` is not undefined.
-      // This is safe because we are inside a `protectedProcedure`.
       where: eq(bots.userId, ctx.session.user.id!),
       orderBy: [desc(bots.createdAt)],
     });
@@ -35,14 +28,25 @@ export const botRouter = createTRPCRouter({
   create: protectedProcedure
     .input(z.object({ name: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
-      const newBotId = nanoid();
-      await ctx.db.insert(bots).values({
-        id: newBotId,
-        name: input.name,
-        // The `!` is also safe to add here for consistency.
-        userId: ctx.session.user.id!,
-      });
-      return { id: newBotId, name: input.name };
+      // Create the bot record, letting the DB generate the ID.
+      // We MUST provide the required 'publicUrlId'.
+      const [newBot] = await ctx.db
+        .insert(bots)
+        .values({
+          name: input.name,
+          userId: ctx.session.user.id!,
+          publicUrlId: nanoid(10), // Generate a 10-char random public ID
+        })
+        .returning(); // Ask the DB to return the full new record, including the generated ID
+
+      if (!newBot) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Could not create bot.",
+        });
+      }
+
+      return newBot;
     }),
 
   update: protectedProcedure
@@ -55,7 +59,7 @@ export const botRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const [bot] = await ctx.db.select().from(bots).where(eq(bots.id, input.id));
-      if (!bot || bot.userId !== ctx.session.user.id) {
+      if (!bot || bot.userId !== ctx.session.user.id!) {
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
@@ -83,7 +87,7 @@ export const botRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const [bot] = await ctx.db.select().from(bots).where(eq(bots.id, input.botId));
-      if (!bot || bot.userId !== ctx.session.user.id) {
+      if (!bot || bot.userId !== ctx.session.user.id!) {
         throw new TRPCError({ code: 'FORBIDDEN' });
       }
 
