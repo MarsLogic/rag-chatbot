@@ -28,5 +28,5 @@
     "**/*.ts",
     "**/*.tsx"
   ],
-  "exclude": ["node_modules", "drizzle.config.ts"]
+  "exclude": ["node_modules", "drizzle.config.local.ts"]
 }
