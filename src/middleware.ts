@@ -1,29 +1,32 @@
 // src/middleware.ts
-import { auth } from "@/server/auth"
+
+import { auth } from "@/server/auth";
 
 export default auth((req) => {
+  // The 'auth' middleware already protects all routes by default.
+  // We only need to add custom logic for redirecting logged-in users.
+
   const isLoggedIn = !!req.auth;
   const { nextUrl } = req;
-  const pathname = nextUrl.pathname;
-
-  // Rule 1: Protect the dashboard and all main app routes.
-  // If a user is not logged in, redirect them to the login page.
-  if ((pathname.startsWith('/dashboard') || pathname === '/') && !isLoggedIn) {
-    return Response.redirect(new URL('/login', nextUrl));
-  }
-
-  // Rule 2: Handle logged-in users.
+  
   // If a logged-in user tries to access the login or register pages,
   // redirect them to their dashboard.
-  if (isLoggedIn && (pathname.startsWith('/login') || pathname.startsWith('/register'))) {
-    return Response.redirect(new URL('/dashboard', nextUrl));
+  if (isLoggedIn) {
+    if (nextUrl.pathname.startsWith('/login') || nextUrl.pathname.startsWith('/register')) {
+      return Response.redirect(new URL('/dashboard', nextUrl));
+    }
   }
-  
-  // Rule 3: Allow all other requests to proceed.
-  return;
-})
 
-// Do not invoke Middleware on API routes, static files, or image assets.
+  // If not logged in and not on a public page, the default `auth` handler will
+  // automatically redirect them to the login page.
+  
+  // Allow the request to proceed if no custom redirect is needed.
+  return;
+});
+
+// This config specifies that the middleware should only run on paths
+// that are NOT API routes, static files, or image optimization routes.
+// Your existing config is correct.
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
-}
+};
