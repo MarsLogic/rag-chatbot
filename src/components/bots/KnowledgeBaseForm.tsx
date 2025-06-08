@@ -7,12 +7,10 @@ import { useDropzone } from "react-dropzone";
 import { Loader2, UploadCloud } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { api } from "@/lib/trpc/client";
-// FIX: Import the official type helper from tRPC
 import { inferRouterOutputs } from "@trpc/server";
 import { AppRouter } from "@/server/api/routers/_app";
 
-// FIX: Use the recommended `inferRouterOutputs` to get the correct type for our bot object
+// Use the recommended `inferRouterOutputs` to get the correct type for our bot object
 type Bot = inferRouterOutputs<AppRouter>["bot"]["byId"];
 
 interface KnowledgeBaseFormProps {
@@ -23,46 +21,47 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
 
-  const getUploadUrlMutation = api.bot.getUploadPresignedUrl.useMutation();
-  const confirmUploadMutation = api.bot.confirmUpload.useMutation();
+  // We no longer need the tRPC mutations for upload
+  // const getUploadUrlMutation = api.bot.getUploadPresignedUrl.useMutation();
+  // const confirmUploadMutation = api.bot.confirmUpload.useMutation();
 
   const onDrop = async (acceptedFiles: File[]) => {
-    if (!acceptedFiles || acceptedFiles.length === 0) return;
+    if (!acceptedFiles || acceptedFiles.length === 0 || !bot) return;
     const file = acceptedFiles[0];
     
     setIsUploading(true);
     
     try {
-      // 1. Get the secure upload URL from our backend
-      const { uploadUrl, documentId } = await getUploadUrlMutation.mutateAsync({
-        botId: bot.id,
-        fileName: file.name,
-        fileType: file.type,
-      });
+      // The new endpoint needs the botId and filename as query parameters
+      const uploadUrl = `/api/upload?filename=${encodeURIComponent(file.name)}&botId=${bot.id}`;
 
-      // 2. Upload the file directly to the secure URL (this will be R2 in the future)
-      await fetch(uploadUrl, {
-        method: 'PUT',
+      // Upload the file directly to our new API route.
+      // The route will handle streaming the file to Vercel Blob.
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
         body: file,
         headers: { 'Content-Type': file.type },
       });
 
-      // 3. Confirm the upload with our backend
-      await confirmUploadMutation.mutateAsync({
-        botId: bot.id,
-        documentId: documentId,
-        fileSize: file.size,
-      });
+      if (!response.ok) {
+        throw new Error('Upload failed.');
+      }
       
+      // The API route now returns the newly created document record on success
+      const newDocument = await response.json();
+
       toast({
         title: "Upload Successful",
-        description: `"${file.name}" has been uploaded.`,
+        description: `"${newDocument.fileName}" has been added to the knowledge base.`,
       });
+      
+      // Here you can add logic to refresh the list of documents
+      // e.g., using a router.refresh() or a query invalidation if using tanstack-query
 
     } catch (error) {
       toast({
         title: "Upload Failed",
-        description: "Could not upload the file. Please try again.",
+        description: "Could not upload the file. Please check the file type and size, and try again.",
         variant: "destructive",
       });
     } finally {
@@ -73,7 +72,15 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     multiple: false,
-    accept: { 'application/pdf': ['.pdf'], 'text/plain': ['.txt'] },
+    // Let's expand the accepted file types according to our PRD
+    accept: { 
+      'application/pdf': ['.pdf'], 
+      'text/plain': ['.txt'],
+      'text/markdown': ['.md', '.markdown'],
+      'text/csv': ['.csv'],
+      'application/json': ['.json'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+    },
   });
 
   return (
@@ -99,7 +106,7 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
               <p className="text-muted-foreground">
                 <span className="font-semibold text-primary">Click to upload</span> or drag and drop
               </p>
-              <p className="text-xs text-muted-foreground">PDF or TXT (Max 10MB)</p>
+              <p className="text-xs text-muted-foreground">PDF, TXT, DOCX, JSON, or CSV (Max 10MB)</p>
             </div>
           )}
         </div>
