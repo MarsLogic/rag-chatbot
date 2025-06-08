@@ -1,7 +1,6 @@
 // src/server/api/routers/tenant.ts
 
 import { z } from "zod";
-// 1. USE A DIRECT RELATIVE PATH
 import { createTRPCRouter, protectedProcedure } from "../trpc"; 
 import { tenantSettings } from "@/lib/db/schema";
 import { encrypt } from "@/lib/security/crypto";
@@ -13,13 +12,13 @@ type LlmProvider = z.infer<typeof llmProviderZodEnum>;
 const providerToColumnMap: Record<LlmProvider, keyof typeof tenantSettings.$inferInsert> = {
   openai: "openaiApiKey",
   anthropic: "anthropicApiKey",
-grok: "grokApiKey",
+  grok: "grokApiKey",
 };
 
 export const tenantRouter = createTRPCRouter({
   getApiKeyStatus: protectedProcedure.query(async ({ ctx }) => {
     const settings = await ctx.db.query.tenantSettings.findFirst({
-      where: eq(tenantSettings.userId, ctx.session.user.id),
+      where: eq(tenantSettings.userId, ctx.session.user.id!),
     });
 
     return {
@@ -44,7 +43,7 @@ export const tenantRouter = createTRPCRouter({
       await ctx.db
         .insert(tenantSettings)
         .values({
-          userId: ctx.session.user.id,
+          userId: ctx.session.user.id!,
           [columnToUpdate]: encryptedKey,
         })
         .onConflictDoUpdate({
@@ -59,6 +58,7 @@ export const tenantRouter = createTRPCRouter({
     }),
 
   removeApiKey: protectedProcedure
+    // CORRECTED THIS LINE
     .input(z.object({ provider: llmProviderZodEnum }))
     .mutation(async ({ ctx, input }) => {
       const { provider } = input;
@@ -67,7 +67,7 @@ export const tenantRouter = createTRPCRouter({
       await ctx.db
         .update(tenantSettings)
         .set({ [columnToUpdate]: null, updatedAt: new Date() })
-        .where(eq(tenantSettings.userId, ctx.session.user.id));
+        .where(eq(tenantSettings.userId, ctx.session.user.id!));
 
       return { success: true, provider };
     }),
