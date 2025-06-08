@@ -16,6 +16,7 @@ export const botRouter = createTRPCRouter({
         .from(bots)
         .where(eq(bots.id, input.id));
 
+      // This check is inside a protectedProcedure, so user is guaranteed to exist.
       if (!bot || bot.userId !== ctx.session.user.id) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
@@ -24,7 +25,9 @@ export const botRouter = createTRPCRouter({
 
   list: protectedProcedure.query(({ ctx }) => {
     return ctx.db.query.bots.findMany({
-      where: eq(bots.userId, ctx.session.user.id),
+      // The `!` tells TypeScript to trust us that `ctx.session.user.id` is not undefined.
+      // This is safe because we are inside a `protectedProcedure`.
+      where: eq(bots.userId, ctx.session.user.id!),
       orderBy: [desc(bots.createdAt)],
     });
   }),
@@ -36,12 +39,12 @@ export const botRouter = createTRPCRouter({
       await ctx.db.insert(bots).values({
         id: newBotId,
         name: input.name,
-        userId: ctx.session.user.id,
+        // The `!` is also safe to add here for consistency.
+        userId: ctx.session.user.id!,
       });
       return { id: newBotId, name: input.name };
     }),
 
-  // ---- ADD THIS NEW PROCEDURE ----
   update: protectedProcedure
     .input(
       z.object({
@@ -51,7 +54,6 @@ export const botRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify user owns the bot they are trying to update
       const [bot] = await ctx.db.select().from(bots).where(eq(bots.id, input.id));
       if (!bot || bot.userId !== ctx.session.user.id) {
         throw new TRPCError({ code: "FORBIDDEN" });
