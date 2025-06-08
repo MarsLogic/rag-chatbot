@@ -1,0 +1,207 @@
+Document 1: Product Requirements Document (PRD) - RAG Chatbot Platform (Version 1.3)
+File Name: docs/prd-v1.3.md
+Version: 1.3
+Date: June 8, 2025
+Purpose: Defines the vision, features, use cases, user journeys, GUI pages, and requirements for the RAG Chatbot Platform. This document guides AI-assisted development for a phased rollout, leveraging composed managed cloud services, and aims to deliver a competitive and feature-rich RAG SaaS.
+Table of Contents
+Vision and Strategic Alignment
+Overview
+Target Users
+Key Differentiators
+Use Cases and User Journeys
+5.1. User Authentication & LLM Key Management
+5.2. Bot Creation & Core Configuration
+5.3. Knowledge Base Management (Enhanced)
+5.4. System Prompt Management
+5.5. Bot Deployment & Widget Management
+5.6. Chatbot Interaction & Testing
+5.7. Analytics & Insights
+5.8. Template Utilization
+5.9. Admin Oversight (MVP Scope)
+Phased Development & Features
+6.1. Phase 1: Local RAG Pipeline & Basic UI (Proof of Concept & RAG Quality Validation)
+6.2. Phase 2: Core Platform MVP Features (Enhanced - Must-Have for Initial Public Offering)
+6.3. Phase 3 & Beyond: Advanced Features, SaaS Scaling & Market Specialization
+GUI Pages (for Phase 2 MVP - ~13 Core Views)
+7.1. Authentication Pages (Login, Signup, Forgot Password)
+7.2. Account Settings Page (Profile, Password, LLM API Keys)
+7.3. Dashboard Page
+7.4. Bot Creation Page (Multi-Step Wizard)
+7.5. Bot List Page
+7.6. Bot Detail / Edit Page (Tabbed - General, Knowledge Base, Prompts, AI Config, Widget & Embed)
+7.7. Test Bot Page
+7.8. Analytics Overview Page
+7.9. Bot-Specific Analytics Page
+7.10. Template Gallery Page
+7.11. Admin Dashboard Page
+Non-Functional Requirements (NFRs)
+Success Metrics
+Constraints and Assumptions
+Development Roadmap (Aligned with Phased Approach)
+Stakeholders
+Risks and Mitigations
+Glossary of Terms
+1. Vision and Strategic Alignment
+Vision Statement: To be the leading platform for effortlessly building and deploying intelligent RAG chatbots, empowering anyone to leverage the power of conversational AI.
+Strategic Alignment: This platform directly supports our company's strategic initiative to innovate within the AI-tooling market, enhance our portfolio with cutting-edge AI solutions, and democratize access to advanced AI technologies for developers, businesses, and individuals. It aims to establish a strong foothold in the rapidly growing conversational AI space.
+2. Overview
+The RAG Chatbot Platform is a scalable, user-friendly web application that enables users to create, manage, and deploy custom Retrieval-Augmented Generation (RAG) chatbots. It supports secure authentication, pre-built templates, unique bot links/embeds, customizable prompts, diverse knowledge base sources (including files like PDF, TXT, DOCX, JSON, CSV, and manual text input), basic widget configuration with live preview, analytics, and scalability for multiple users and bots. The platform is designed for production readiness by leveraging robust managed cloud services, ensuring high performance, security, and extensibility.
+Objective: Empower developers, businesses, and individuals to build and manage RAG-powered chatbots efficiently, fostering innovation and practical application of AI.
+3. Target Users
+Developers: Building chatbots for applications or client projects, seeking robust APIs, customization, and control over LLM usage (via a Bring-Your-Own-Key model).
+Businesses (B2B): Deploying chatbots for customer support, sales, internal knowledge management, seeking ease of use, brand alignment (through widget and prompt customization), and actionable analytics.
+Individuals/Prosumers (B2C): Experimenting with chatbots for personal projects, education, or creative endeavors, valuing accessibility, local development options for RAG core testing, and affordable scaling.
+4. Key Differentiators
+Hybrid LLM Strategy & Local RAG Prototyping: Enables free local RAG pipeline development and testing with Ollama LLM, with a clear path to production using cloud LLMs via a user-provided API key (BYOK) model.
+Deep Customization & Control: Users can manage multiple named system prompts per bot and utilize diverse knowledge base sources (various file types and manual text input) to precisely tailor chatbot behavior and knowledge.
+Intuitive User Experience: A streamlined GUI designed for ease of use from bot creation and prompt engineering to deployment (via an embeddable widget with live preview) and analysis.
+Production-Ready & Scalable via Managed Services: Built leveraging best-in-class, scalable managed cloud services (e.g., Vercel for frontend/API, Neon for database, Cloudflare R2 for storage, Inngest for async tasks) to ensure high reliability and allow development focus on core RAG innovation.
+Modular & Extensible Architecture: Designed for future enhancements and the flexibility to integrate or swap individual managed service components as the platform evolves.
+5. Use Cases and User Journeys
+5.1. User Authentication & LLM Key Management:
+Description: Users register, log in, manage basic profiles, recover passwords securely, and manage their API keys for external LLM providers (BYOK model) for use with their bots.
+User Journey: New user signs up (email/OAuth). Existing user logs in. User navigates to Account Settings, updates profile information (name). User securely adds, tests, and removes their API keys for supported LLM providers (e.g., OpenAI, Anthropic).
+5.2. Bot Creation & Core Configuration:
+Description: Users create new chatbot instances, defining their name, description, initial RAG settings, and selecting one of their configured LLM providers to power the bot.
+User Journey: User initiates bot creation (blank or from template). Enters bot name and description. Selects one of their configured LLM providers for this bot. Sets initial RAG parameters (chunk size, Top-K). Saves the bot.
+5.3. Knowledge Base Management (Enhanced):
+Description: Users build and maintain the knowledge base for each bot by uploading various file types (PDF, TXT, DOCX, JSON, CSV) or inputting text snippets directly.
+User Journey: User selects a bot. Navigates to its Knowledge Base management section. Uploads one or more supported files, or uses the UI to paste/type text as a manual KB entry. System processes and indexes new content asynchronously. User views the list of KB sources and their processing status (pending, processing, ready, error) and can delete individual sources.
+5.4. System Prompt Management:
+Description: Users create, manage, and activate multiple named system prompts for each bot to define its persona, tone, response style, and specific instructions.
+User Journey: User selects a bot. Navigates to its Prompt Management section. Views existing prompts. Creates a new prompt (gives it a unique name, writes the system prompt content). Can edit or delete existing prompts. Sets one prompt as "active," which will be used by the bot for generating responses.
+5.5. Bot Deployment & Widget Management:
+Description: Users obtain embeddable widgets for their chatbots and configure basic widget appearance for integration into their websites or applications.
+User Journey: User selects a bot. Navigates to its Widget & Embed section. Previews the live widget. Copies the iframe embed code or the sharable unique chat page URL. Configures basic widget settings (e.g., header text, primary color, initial greeting message). Saves widget configuration.
+5.6. Chatbot Interaction & Testing:
+Description: Users interact with their configured RAG chatbots within the platform to test responses, validate behavior based on the active prompt and knowledge base, and provide feedback on response quality.
+User Journey: User selects a bot. Navigates to the Test Chat interface. Sends queries. Views streamed responses from the bot, including (optionally displayed) source document snippets that informed the answer. Rates response quality (e.g., thumbs up/down) and provides optional textual feedback.
+5.7. Analytics & Insights:
+Description: Users monitor their chatbots' performance, understand query patterns, and review user feedback to identify areas for improvement.
+User Journey: User accesses the main Analytics Dashboard for an overview of all their bots. Drills down to a specific bot's analytics page. Filters data by selected time periods. Views metrics like query volume, response times, and feedback summaries.
+5.8. Template Utilization:
+Description: Users leverage pre-built templates (including RAG configurations and sample prompts) to accelerate the creation of common chatbot types.
+User Journey: User browses the Template Gallery. Previews details of a template (description, intended use case, sample prompt structure). Clones a template to create a new bot, which starts with the template's pre-filled configurations.
+5.9. Admin Oversight (MVP Scope):
+Description: Platform administrators perform essential user and bot management tasks for platform health and support.
+User Journey: Admin logs in. Accesses Admin Dashboard. Views a list of all platform users and can filter/search. Modifies a user's role (e.g., grant admin privileges). Views a list of all bots created on the platform for oversight.
+6. Phased Development & Features
+6.1. Phase 1: Local RAG Pipeline & Basic UI (Proof of Concept & RAG Quality Validation)
+Objective: Validate core RAG mechanics (loading diverse documents, chunking, embedding, vector storage/retrieval, prompting, LLM generation) locally to achieve high-quality responses before building the full cloud platform.
+Key Deliverables / Focus Areas:
+Local document loading for PDF, TXT, DOCX, JSON, CSV.
+Implementation and iteration of effective text chunking strategies.
+Local embedding generation using Ollama.
+Local vector storage/retrieval (e.g., LanceDB or Dockerized PostgreSQL with pgvector).
+Basic query interface (CLI or ultra-minimal Next.js page) for testing RAG with local Ollama LLM.
+Intensive iteration on prompt engineering, retrieval strategies, and context construction.
+Establishment of baseline RAG quality metrics on test documents.
+Success Metric for Phase 1: Achieve >85% relevance/accuracy on a defined set of 20 golden questions using the local RAG pipeline across varied document types.
+Scope Exclusions for Phase 1: User accounts, cloud service integration, database for application metadata, full UI.
+6.2. Phase 2: Core Platform MVP Features (Enhanced - Must-Have for Initial Public Offering)
+(Builds upon a validated Phase 1 RAG core; F# corresponds to PRD v1.3 features)
+F1: Secure User Authentication & BYOK LLM Key Management (NextAuth.js): Email/password, OAuth (Google, GitHub), password recovery, basic profile. UI for users to securely add, test, and manage their API keys for supported cloud LLM providers (keys encrypted at rest).
+F2: Bot Creation & Core RAG Configuration: Create bot (blank/template), name, description. User selects one of their configured LLM providers (BYOK) for the bot. User configures basic RAG parameters (Chunk Size, Overlap, Top-K).
+F3: Knowledge Base Management (Enhanced): File Uploads (PDF, TXT, DOCX, JSON, CSV) to managed object storage (e.g., Cloudflare R2). Manual Text Input UI. Asynchronous document processing (parsing, chunking, embedding, vector storage in managed pgvector DB via managed task queue like Inngest). View, manage, delete KB sources per bot.
+F4: Multiple Named System Prompt Management (per Bot): CRUDL for system prompts. Name prompts. Set one prompt as "active" per bot. Platform provides good default prompts.
+F5: Bot Deployment - Widget & Embed: Generate unique sharable chat page URL. Generate embeddable <iframe> widget code. Live Preview of widget. Basic Widget Customization (Header text, primary color, initial greeting).
+F6: Chatbot Testing Interface: Real-time chat UI, streamed responses, display of RAG sources, feedback mechanism (thumbs up/down, optional comment).
+F7: Bot Management Dashboard: List user's bots (name, status, active prompt name, doc count). Search, sort, filter. Access to Bot Detail/Edit.
+F8: Basic Analytics Dashboard: User's overall bot activity (query counts, trends). Bot-Specific analytics (query counts, response times, feedback). Time period filtering.
+F9: Template Gallery (Usage): Browse 3-5 MVP templates. Preview. Clone.
+F10: Core Admin Dashboard (MVP): View all users. Modify user roles. View all bots for oversight.
+6.3. Phase 3 & Beyond: Advanced Features, SaaS Scaling & Market Specialization
+(Prioritized based on MVP feedback and business strategy)
+Enhanced RAG: Advanced chunking/retrieval, Graph RAG, more data source integrations (Notion, GDrive, Web Crawling).
+Chatbot Experience: Conversational memory, advanced widget customization, channel integrations (Slack, WhatsApp), human handoff.
+SaaS Platform: "Workspace/Tenant" entity for B2B team collaboration, advanced user roles/permissions within a workspace, Platform API Key Management for tenants, platform credit system for LLM usage, audit logs, whitelabeling.
+AI & Automation: Automated prompt optimization, knowledge gap detection, automated RAG evaluation dashboard (RAGAs/TruLens).
+Localization: Bahasa Indonesia UI/docs/RAG support, local payment gateways.
+7. GUI Pages (for Phase 2 MVP - ~13 Core Views)
+(Refer to UI Design Document v1.3 for detailed descriptions of each page and its components.)
+Login Page
+Signup Page
+Forgot Password Page
+Account Settings Page (Tabs: Profile, Password, LLM API Keys (BYOK))
+Dashboard Page (User's bot overview)
+Bot Creation Page (Multi-step wizard for bot details, initial KB, RAG/LLM config)
+Bot List Page
+Bot Detail / Edit Page (Main hub, tabbed):
+General Settings Tab
+Knowledge Base Tab (File upload for PDF/TXT/DOCX/JSON/CSV, Manual text input, List/delete sources)
+Prompts Tab (List, create, edit, activate, delete named system prompts)
+AI Configuration Tab (RAG settings, selection of user's configured LLM provider)
+Widget & Embed Tab (Live preview, basic customization, embed code, sharable link)
+Test Bot Page
+Analytics Overview Page
+Bot-Specific Analytics Page
+Template Gallery Page
+Admin Dashboard Page (User list, Bot list, Role modification)
+8. Non-Functional Requirements (NFRs)
+Scalability: Leverage auto-scaling of managed hosting (Vercel, Fly.io/Render) and managed services (Neon, Inngest, R2) to support growth to 1,000+ concurrent users.
+Security: HTTPS enforcement. Secure management of user credentials and tenant-provided LLM API keys (application-level encryption at rest, secure handling). OWASP Top 10 focus. Dependency scanning. Rely on security infrastructure of managed service providers.
+Performance: P95 RAG query LLM response time < 2 seconds (cloud LLMs). GUI Page LCP < 1.5 seconds. Optimized database queries and pgvector indexing.
+Reliability: Target >99.9% overall application uptime, leveraging SLAs of underlying managed services. Robust error handling.
+Flexibility & Extensibility: Modular application code. Ability to swap/integrate different managed services.
+Usability: Intuitive GUI adhering to WCAG 2.1 Level AA accessibility standards. Responsive design.
+Data Privacy: Adherence to data protection principles. User data deletion on account removal. (Specific compliance like GDPR assessed post-MVP).
+Testability: All functional requirements testable via automated/manual means. NFRs validated.
+9. Success Metrics
+Phase 1 RAG PoC: Achieve >85% relevance/accuracy on 20 golden questions using local RAG pipeline.
+Phase 2 MVP (Platform Level - First 3 months post-beta launch):
+User Adoption: 50 active users.
+Bot Creation & Config: >50% of active bots utilize BYOK LLM. >30% use a custom active prompt.
+KB Engagement: Users utilize diverse KB input methods (file & manual text).
+Widget Embedding: >20% of active bots embedded externally.
+User Satisfaction: >75% positive feedback ratings on bot responses in test chat.
+Performance/Reliability: Meet NFR targets.
+10. Constraints and Assumptions
+Constraints:
+Local RAG development (Phase 1) depends on user hardware for Ollama.
+MVP deployment relies on free/hobby tier limits of managed services; scaling incurs costs.
+Dependent on APIs, features, reliability, and pricing of third-party managed services.
+Assumptions:
+Users possess basic technical literacy for RAG concepts and API key management (BYOK).
+MVP targets initial scale manageable within early paid tiers of managed services.
+Production MVP uses user-provided API keys for cloud LLMs (BYOK model). A platform credit system is a high-priority Phase 3 feature.
+The platform offers sufficient value (RAG orchestration, KB management, prompt customization, widgets) for users to adopt the BYOK model.
+11. Development Roadmap (Aligned with Phased Approach)
+Phase 1: Local RAG Pipeline & Basic UI (Proof of Concept & RAG Quality Validation) (Target: 2-4 weeks)
+Focus: Core RAG engine quality (loading diverse docs, chunking, embedding, retrieval, prompting).
+Tools: Python/LangChain/LlamaIndex (or .TS), Ollama, LanceDB/local pgvector.
+Outcome: Validated RAG engine, refined prompting, baseline quality metrics.
+Phase 2: Core Platform MVP (Leveraging Managed Services) (Target: 8-14 weeks after Phase 1)
+Implement enhanced MVP Features F1-F10.
+Tech: Next.js/Vercel, tRPC/Node.js API, Neon (pgvector), NextAuth.js, Cloudflare R2, Inngest/Trigger.dev. Build ~13 GUI pages.
+Integrate validated RAG core logic into async tasks and API. Deploy to cloud, onboard beta users.
+Phase 3 & Beyond: Advanced Features, SaaS Scaling & Market Specialization (Ongoing)
+Prioritize from "Phase 3 & Beyond" feature list (e.g., Workspaces, Platform API Keys, Credit System, advanced RAG, localization).
+12. Stakeholders
+Product Owner (Solo Developer in this context)
+Target Users (Developers, Businesses, Individuals) - for feedback collection
+(Future) Investors, Partners
+13. Risks and Mitigations
+RAG Quality Deficiencies (from Phase 1): Core RAG pipeline doesn't meet accuracy/relevance targets.
+Mitigation: Intensive iteration in Phase 1. If major issues, re-evaluate chunking/embedding/prompting strategies before committing to full Phase 2.
+Managed Service Dependency: Outages, price changes, or feature limitations from providers.
+Mitigation: Choose reputable providers with good SLAs. Design application with abstractions to allow easier swapping of services if one becomes problematic. Monitor provider status and pricing.
+BYOK LLM Adoption & Security: Users find BYOK complex or are concerned about API key security.
+Mitigation: Clear UX for key input, robust application-level encryption of keys, transparent error messages. Plan for platform credit system (Phase 3) as an alternative.
+Feature Creep in MVP: Scope expands beyond manageable for solo dev in Phase 2.
+Mitigation: Strict adherence to the defined Phase 2 MVP feature list. Defer other ideas to Phase 3 backlog.
+Complexity of Parsing Diverse Document Types: Ensuring robust and accurate text extraction from JSON, CSV, DOCX.
+Mitigation: Leverage mature libraries (LangChain/LlamaIndex Document Loaders). Start with common structures for JSON/CSV, add support for more complex variants iteratively. Thorough testing.
+14. Glossary of Terms
+RAG (Retrieval-Augmented Generation): AI framework retrieving contextual documents to ground LLMs.
+LLM (Large Language Model): AI model for understanding/generating human-like text.
+Embedding: Numerical vector representing text semantics.
+Chunking: Breaking documents into smaller text pieces for RAG.
+Vector Database (pgvector): PostgreSQL extension for storing/querying vector embeddings.
+Ollama: Tool for running open-source LLMs locally.
+BYOK (Bring Your Own Key): Users provide their own API keys for third-party services (e.g., LLM providers).
+System Prompt: Instructions given to an LLM to define its persona, task, tone, and constraints.
+Widget (Embeddable): An iframe or script used to embed the chatbot on external websites.
+Neon, Cloudflare R2, Inngest, Vercel, Fly.io/Render: Examples of managed cloud services used in Approach 3.
+tRPC: TypeScript toolkit for building type-safe APIs.
+NextAuth.js: Authentication library for Next.js.
+Drizzle ORM: TypeScript ORM for SQL databases.

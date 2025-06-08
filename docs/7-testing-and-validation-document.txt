@@ -1,0 +1,227 @@
+Document 7: Testing and Validation Document (Final Version 1.3)
+File Name: docs/testing-validation-v1.3.md
+Version: 1.3
+Date: June 8, 2025
+Purpose: Defines the comprehensive testing strategies, types of tests, tools, validation criteria, and quality assurance processes for the RAG Chatbot Platform's enhanced MVP. This document guides AI-assisted development in generating test cases and ensures the platform (built with composed managed cloud services and a tRPC API) meets production-readiness standards for quality, reliability, and user experience.
+Table of Contents
+Overview
+1.1. Testing Philosophy
+1.2. Testing Pyramid
+1.3. Scope of Testing
+1.4. Risk-Based Testing Approach
+Testing Environments
+2.1. Local Development
+2.2. CI Environment (GitHub Actions)
+2.3. Staging/Preview Environment (Composed Managed Services)
+2.4. Production Environment
+Types of Testing & Tools
+3.1. Static Code Analysis
+3.2. Unit Tests
+* Frontend (Next.js with Vitest/RTL)
+* Backend (tRPC API / Node.js with Jest/Vitest)
+3.3. Integration Tests
+* Backend API (tRPC Procedures with Test Client)
+* Component Integration (Frontend)
+* Managed Service Integration Points
+3.4. End-to-End (E2E) Tests
+3.5. Performance Tests
+3.6. Security Testing
+3.7. Usability Testing
+3.8. Accessibility (A11y) Testing
+3.9. RAG Quality Testing (MVP & Future)
+3.10. (Future) Visual Regression Testing
+Test Data Management
+4.1. General Principles
+4.2. Unit/Integration Test Data
+4.3. Staging/Preview Environment Test Data (Seeding Strategy for Neon)
+4.4. RAG Quality Test Data
+Test Execution Strategy
+5.1. Local Development
+5.2. Continuous Integration (CI) - GitHub Actions
+5.3. Staging/Preview Environment (Scheduled & On-Demand)
+5.4. Production Monitoring (Validation)
+5.5. Manual Testing Cadence
+Validation Criteria & Quality Gates
+6.1. Code Coverage Targets
+6.2. Test Pass Rates
+6.3. Performance Benchmarks
+6.4. Security Vulnerability & Configuration Thresholds
+6.5. RAG Quality Metrics (MVP)
+6.6. Uptime and Reliability (Leveraging Managed Service SLAs)
+6.7. Browser & Device Compatibility
+6.8. Definition of Critical Bug
+Bug Tracking and Management
+7.1. Tool & Process
+7.2. Severity/Priority Definitions
+7.3. Bug Lifecycle
+AI-Assisted Test Generation Guidelines
+8.1. Prompts for Unit Tests (Frontend & Backend tRPC)
+8.2. Prompts for tRPC Integration Tests
+8.3. Prompts for E2E Test Scaffolding
+(Future) Advanced Testing Considerations
+9.1. Managed Service Disaster Recovery Validation
+9.2. Major Component Swap/Migration Testing
+1. Overview
+1.1. Testing Philosophy
+Test Early, Test Often: Integrate testing throughout the development lifecycle.
+Automate Extensively: Automate repeatable tests to ensure consistency and speed.
+Shift Left: Find and fix bugs as early as possible in the development process.
+Risk-Based Testing: Prioritize testing based on the risk and impact of features.
+Comprehensive Coverage: Aim for a balanced mix of test types to cover different aspects of the application.
+1.2. Testing Pyramid
+The testing strategy will generally follow the testing pyramid:
+Base (Largest): Unit Tests: Fast, isolated tests for individual functions/modules/components.
+Middle: Integration Tests: Verify interactions between components or services.
+Top (Smallest): End-to-End Tests: Validate complete user flows through the UI.
+Surrounding: Manual/Exploratory Testing, Performance, Security, Usability, Accessibility, RAG Quality.
+1.3. Scope of Testing (Expanded for new features)
+Testing will cover:
+Frontend (Next.js application, including UI for prompt management, enhanced KB [manual text, JSON, CSV, DOCX, MD uploads], widget configuration, BYOK LLM keys).
+Backend (tRPC API / Node.js, including logic for new features like prompt management, widget config, BYOK key handling, and parsing/processing new document types).
+Integrations (Managed Services: Neon/pgvector, Cloudflare R2, Inngest/Trigger.dev, NextAuth.js, external LLM APIs via BYOK).
+RAG pipeline functionality and quality (with custom prompts and diverse KB sources).
+Deployment processes (implicitly via CI/CD success for new code).
+1.4. Risk-Based Testing Approach
+Testing efforts will be prioritized based on risk assessment. Features with higher user impact, business criticality, technical complexity (e.g., BYOK key security, new document parsers), or frequent changes will receive more intensive testing (e.g., more E2E scenarios, deeper exploratory and security testing). Risk assessment will be an ongoing collaborative effort.
+2. Testing Environments
+2.1. Local Development
+Developers run linters, type checks, unit tests, and relevant tRPC procedure integration tests locally before committing code.
+Leverage local Ollama for RAG/LLM testing, service CLIs/emulators (e.g., Inngest Dev Server), and local or development-tier connection to a Neon DB instance.
+Manual testing of features being developed.
+2.2. CI Environment (GitHub Actions)
+All automated tests (linting, unit, tRPC integration, E2E smoke) are run on every push/PR.
+Builds application bundles/Docker images (if applicable for API host).
+Performs dependency and security scans.
+2.3. Staging/Preview Environment (Composed Managed Services)
+Nature: A composition of managed service environments configured for staging/testing:
+Frontend & tRPC API (if on Next.js): Vercel Preview Deployments (a new, isolated environment for each PR/commit).
+Standalone tRPC API (if on Fly.io/Render): Dedicated "staging" app instance.
+Database (Neon): Dedicated "staging" or "development" branch/project in Neon, populated with comprehensive test data via automated seeding scripts. Neon's branching can be used to create isolated DB states for specific test runs.
+File Storage (Cloudflare R2): Dedicated "staging" bucket or prefixed paths within a bucket.
+Async Tasks (Inngest/Trigger.dev): "Staging" environment configuration or specific test functions deployed for this environment.
+Purpose: Full E2E test suites, performance tests, UAT, RAG quality validation, manual exploratory, usability, and accessibility testing. Mirrors production service choices and configurations as closely as possible.
+2.4. Production Environment
+Live deployed services on Vercel, Neon, R2, Inngest, etc.
+Monitored continuously. Post-deployment smoke tests (manual or automated subset of E2E) are crucial.
+3. Types of Testing & Tools
+3.1. Static Code Analysis
+Linters & Formatters: ESLint (for JavaScript/TypeScript), Prettier (for code formatting).
+Type Checking: TypeScript compiler (tsc).
+Purpose: Enforce code style, identify potential bugs, maintain consistency, catch type errors.
+Execution: Pre-commit hooks, CI pipeline.
+3.2. Unit Tests
+Frontend (Next.js with Vitest/RTL):
+Tool: Vitest (test runner), React Testing Library (for component rendering and interaction).
+Scope: Individual React components (including new UI for prompt management, KB types, widget config, BYOK), utility functions, custom hooks.
+Focus: Verify component rendering, state changes, event handling, prop validation. Mock tRPC client calls.
+Backend (tRPC API / Node.js with Jest/Vitest):
+Tool: Jest or Vitest.
+Scope: Individual tRPC procedures (testing the core logic within, mocking database calls and other external service SDKs for Neon, R2, Inngest, LLM providers), utility functions, business logic modules for features like prompt management, widget config, BYOK key handling, parsing new document types.
+Focus: Verify business logic, input/output (using Zod schemas for input), error handling.
+3.3. Integration Tests
+Backend API (tRPC Procedures with Test Client):
+Tool: Vitest/Jest as runner. Use tRPC's createCaller or a test client instance to invoke procedures on a test router instance.
+Scope: Test interaction of tRPC procedures with a real test database instance (e.g., staging/dev Neon DB branch), ensuring data is correctly read/written for all entities including bot_prompts, widget_configurations, and tenant_settings for BYOK keys. Test logic for new document types in bot_documents.
+Focus: Verify data persistence, complex queries, interactions between different parts of the API logic, and correct application of business rules (e.g., only one active prompt per bot).
+Component Integration (Frontend):
+Scope: Interactions between multiple related React components (e.g., prompt list and prompt editor modal, widget config form and live preview).
+Managed Service Integration Points:
+Verify that application code correctly interacts with SDKs/APIs of Neon, Cloudflare R2, Inngest/Trigger.dev, NextAuth.js, and external LLM providers (using test/mock keys where appropriate).
+Test Inngest/Trigger.dev functions' ability to parse new document types (JSON, CSV, DOCX, MD) fetched from R2.
+Test dynamic LLM client instantiation using tenant-provided (mocked but valid format) API keys.
+Focus on: Correct authentication, data serialization/deserialization, error handling for service API calls.
+3.4. End-to-End (E2E) Tests
+Tool: Playwright.
+Scope: Critical user journeys through the live application UI (Vercel Preview/Staging).
+Focus: Simulate real user interactions. Verify UI elements, navigation, and data consistency across pages for all MVP features, including:
+User signup, login, BYOK LLM key configuration.
+Creating a bot, uploading various document types (PDF, TXT, JSON, CSV, DOCX, MD), adding manual KB text.
+Managing multiple prompts for a bot, setting one active.
+Configuring widget settings and verifying preview/embed code.
+Testing the bot with the active prompt and ensuring responses reflect KB content.
+Viewing analytics, using templates, and deleting a bot.
+E2E Smoke Test Suite (for CI on PRs): A subset (~10-15 critical scenarios) covering core happy paths.
+3.5. Performance Tests
+Load Testing (k6):
+Scope: Key tRPC API procedures (RAG query, bot list/creation, prompt list/activation) and critical frontend pages.
+Focus: Measure response times (P95, P99), throughput (RPS), and error rates under various load conditions on Staging.
+RAG Response Time Benchmarking: Specific focus on the P50, P90, P95, P99 latencies for the RAG query procedure.
+Frontend Performance (Browser DevTools, Lighthouse): Regular checks for LCP, FCP, TTI on key pages.
+3.6. Security Testing
+Dependency Scanning: npm audit, Snyk (integrated via GitHub).
+Dynamic Application Security Testing (DAST - Basic): Manual/exploratory using OWASP ZAP against Staging. Focus on OWASP Top 10, including checks related to new input fields (prompts, widget config).
+Focus Areas for New Features:
+Secure storage and handling of tenant-provided LLM API keys (encryption at rest, secure decryption in memory).
+Input validation for custom prompts and manual KB text to prevent XSS or other injection if displayed unescaped (though primary risk is LLM manipulation).
+Secure parsing of uploaded file types (JSON, CSV, DOCX, MD) to avoid parser vulnerabilities.
+(Future) Static Application Security Testing (SAST): Tools like SonarQube or GitHub CodeQL.
+3.7. Usability Testing
+Method: Heuristic Evaluation / Manual Walkthroughs on Staging by QA, Product, UX for new feature UIs (prompt management, KB management, widget config).
+Focus: Identify usability issues, inconsistencies, confusing workflows.
+3.8. Accessibility (A11y) Testing
+Manual Checks: Against WCAG 2.1 Level AA using keyboard-only navigation, screen readers for all new UI components and pages.
+Automated Tools: Browser extensions like Axe DevTools during development.
+(Future) axe-core integration into E2E tests.
+3.9. RAG Quality Testing (MVP & Future)
+MVP - Manual Evaluation:
+Use a predefined test suite of 3-5 "golden" RAG bots on Staging, each configured with a curated set of 2-3 diverse documents (including new types: JSON, CSV, DOCX, MD, manual text).
+Test each bot with its different (2-3 per bot) configured "active" system prompts.
+Evaluate against a checklist of 10-15 "golden questions" per bot/prompt combination, covering factual recall, summarization, out-of-scope handling, source attribution.
+Evaluation Checklist: Assess Relevance, Accuracy, Faithfulness, Completeness, Tone, Source Attribution. Use a 1-3 rating scale per criterion.
+(Future) Automated RAG Metrics: Explore RAGAs, TruLens, etc.
+3.10. (Future) Visual Regression Testing (e.g., Percy, Playwright visual comparison)
+4. Test Data Management
+4.1. General Principles (Avoid PII, anonymize/synthesize).
+4.2. Unit/Integration Test Data (Mock data, small controlled datasets, test DB for tRPC integration tests).
+4.3. Staging/Preview Environment Test Data (Seeding Strategy for Neon)
+Version-controlled Drizzle ORM seeding scripts to populate the "staging" Neon database instance with:
+Test users (various roles, different SaaS plans from plans table).
+Test users with various (mocked but valid-format) BYOK LLM API keys configured in tenant_settings for different providers.
+Pre-defined bot templates.
+Sample bots with varying ragConfig and activeLlmConfigProvider.
+Multiple bot_prompts for test bots, with one isActive: true.
+Default widget_configurations for test bots.
+bot_documents with sourceType values covering FILE_UPLOAD (with sample PDF, TXT, DOCX, JSON, CSV files uploaded to a staging R2 bucket) and MANUAL_TEXT.
+Corresponding processed chunks with embeddings in bot_document_chunks (pgvector).
+Seeding scripts run via CI/CD pipeline or manually to ensure a consistent test state. Neon's "database branching" can be used for isolated test datasets.
+4.4. RAG Quality Test Data
+Curated set of "golden" documents (including JSON, CSV, DOCX, MD examples).
+Corresponding "golden questions" to test RAG with different custom prompts.
+5. Test Execution Strategy
+5.1. Local Development (Developers run linters, type checks, relevant unit/tRPC integration tests).
+5.2. Continuous Integration (CI) - GitHub Actions
+On Pull Request: All PR checks from v1.2, ensuring unit/integration tests cover new tRPC procedures and application logic. E2E Smoke Test Suite runs against Vercel Preview + staging backend services.
+(Other triggers as in v1.2).
+5.3. Staging/Preview Environment (Scheduled & On-Demand) (As in v1.2, ensure full E2E covers all new feature flows).
+5.4. Production Monitoring (Validation) (As in v1.2).
+5.5. Manual Testing Cadence (As in v1.2 - exploratory, usability for each release candidate on Staging).
+6. Validation Criteria & Quality Gates
+6.1. Code Coverage Targets (Application code for Next.js, tRPC API, Inngest functions: Backend >85%, Frontend >70%, API Integration >70%).
+6.2. Test Pass Rates (CI: 100% for automated. Full Staging E2E: >98%).
+6.3. Performance Benchmarks (Measure new tRPC procedures).
+6.4. Security Vulnerability & Configuration Thresholds
+No new Critical or High severity vulnerabilities (code/dependencies).
+Confirmation of secure configuration of managed services.
+Successful audit/review of BYOK LLM key secure handling (encryption, storage, runtime use).
+All inputs (prompts, widget settings, KB text) validated.
+6.5. RAG Quality Metrics (MVP) (As in v1.2: >85% relevant/accurate, <5% hallucination, >90% source attribution, now tested across different custom prompts and KB sources).
+6.6. Uptime and Reliability (Leveraging Managed Service SLAs) (Target >99.9% overall application availability).
+6.7. Browser & Device Compatibility (Test new UI elements across targets).
+6.8. Definition of Critical Bug (As in v1.2).
+7. Bug Tracking and Management (Sections 7.1, 7.2, 7.3 as in v1.2 - Tool, Process, Severity/Priority, Lifecycle are sound).
+8. AI-Assisted Test Generation Guidelines
+8.1. Prompts for Unit Tests (Frontend & Backend tRPC)
+Frontend: (As in v1.2).
+Backend (tRPC):
+"Generate Jest/Vitest unit tests for tRPC procedure botPrompt.create. Input Zod schema CreateBotPromptInput (fields: botId, name, content, setActive). Output BotPrompt. Mock Neon DB calls. Test: successful creation; if setActive is true, ensure mock DB call deactivates other prompts for botId."
+"Generate unit tests for user.setLlmApiKey. Input SetLlmApiKeyInput (fields: provider, apiKey). Output LLMApiKeyConfigOutput. Mock encryption service and Neon DB calls. Test: successful save of encrypted key; validation of provider type; handling of key test failure from LLM provider mock."
+8.2. Prompts for tRPC Integration Tests
+"Create Jest/Vitest integration tests for botPromptRouter. Use tRPC createCaller with a test Neon DB. Seed a bot. Test: creating multiple prompts for the seeded bot; setting one active and verifying (read back bot and check activePromptId, check isActive flags on prompts); updating a prompt's content; deleting a prompt."
+"Create integration tests for widgetConfigRouter procedures, verifying CRUD operations and default value population for widget settings against a test Neon DB for a seeded bot."
+8.3. Prompts for E2E Test Scaffolding (Playwright)
+(As in v1.2). Add prompts for new E2E scenarios:
+"Scaffold Playwright E2E test for: User logs in, navigates to a bot's settings, creates two system prompts, sets the second one active, goes to test chat, asks a question, and verifies (conceptually) the response tone matches the second prompt."
+"Scaffold Playwright E2E test for: User logs in, edits a bot, adds a manual text snippet to its knowledge base, then tests the bot and asks a question answerable only from that snippet."
+"Scaffold Playwright E2E test for: User configures BYOK LLM API key for OpenAI in Account Settings. Creates a bot selecting OpenAI as the LLM. Tests the bot."
+9. (Future) Advanced Testing Considerations (As in v1.2 - DR Validation, Migration Testing remain relevant).
+This revised Testing and Validation Document (v1.3) now comprehensively covers the enhanced MVP features of PRD v1.3. It specifies new test areas, data requirements, and AI prompts to ensure quality for features like multiple prompt management, diverse knowledge base inputs, widget configuration, and BYOK LLM key handling.

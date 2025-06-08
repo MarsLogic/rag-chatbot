@@ -1,0 +1,185 @@
+Document 6: Deployment and DevOps Document (Revised)
+File Name: docs/deployment-devops-v1.3.md
+Version: 1.3
+Date: June 8, 2025
+Purpose: Outlines the deployment strategy, CI/CD processes, configuration management, monitoring, scaling, and backup/recovery for the RAG Chatbot Platform, utilizing a composed stack of managed cloud services to support an enhanced MVP feature set. This guides AI-assisted development and operations for a production-ready system.
+Table of Contents
+Overview
+1.1. Deployment Philosophy (Leveraging Managed Services)
+1.2. Target Service Providers & Environments
+Deployment Architecture (Composed Managed Services)
+2.1. Frontend Deployment (Vercel)
+2.2. API Layer Deployment (Vercel or Fly.io/Render)
+2.3. Database Provisioning (Neon)
+2.4. File Storage Provisioning (Cloudflare R2)
+2.5. Async Task Queue Provisioning (Inngest/Trigger.dev)
+2.6. Networking & Service Communication
+Containerization Strategy (Primarily for API Layer if Standalone)
+3.1. Dockerfile Principles (for Node.js API)
+3.2. Dockerfile Template (for Node.js/tRPC API)
+Configuration Management & Secrets
+4.1. Environment Variables per Service
+4.2. Secrets Management Strategy (Highlighting Master Encryption Key for BYOK)
+CI/CD Pipeline (GitHub Actions)
+5.1. Workflow Triggers & Branching Strategy
+5.2. Frontend CI/CD (Vercel Integrated)
+5.3. Backend API CI/CD (GitHub Actions to Fly.io/Render)
+5.4. Async Task Function CI/CD (Inngest/Trigger.dev CLI in GitHub Actions - with Dependencies)
+5.5. Database Migrations in CI/CD (Drizzle Kit for Neon - Emphasized)
+5.6. Image Scanning (if custom Docker images are built)
+5.7. Rollback Strategies
+Monitoring, Logging, and Alerting
+6.1. Leveraging Provider Dashboards & Tools
+6.2. Application Performance Monitoring (APM) - Sentry
+6.3. Structured Logging & (Future) Centralized Aggregation
+6.4. Uptime Monitoring
+6.5. Alerting Strategy & Thresholds
+6.6. (Future) Distributed Tracing
+Scaling Strategy (Leveraging Managed Service Capabilities)
+7.1. Frontend & API Layer Scaling
+7.2. Database Scaling (Neon)
+7.3. Async Task Queue Scaling (Inngest/Trigger.dev)
+7.4. File Storage Scaling (Cloudflare R2)
+Backup and Recovery (Relying on Managed Service Features)
+8.1. Database Backups (Neon)
+8.2. File Storage Durability (Cloudflare R2)
+8.3. Application Code & Configuration
+8.4. Recovery Plan & Testing
+Security in Deployment (Shared Responsibility Model - Emphasizing BYOK Key Security)
+9.1. HTTPS Enforcement (Provider Handled)
+9.2. Platform Access Control & IAM (MFA Everywhere)
+9.3. Application-Level Security
+9.4. Secrets Management (Reiteration & Secure BYOK Key Handling)
+Operational Considerations & Runbook Snippets (Conceptual)
+Conclusion
+1. Overview
+1.1. Deployment Philosophy (Leveraging Managed Services)
+Automated: CI/CD pipelines for all deployable application components.
+Managed First: Prioritize PaaS and SaaS solutions to offload infrastructure management, allowing the development focus to be on application features and RAG innovation.
+Scalable & Resilient: Rely on the inherent scalability, reliability, and uptime guarantees (SLAs) of chosen managed service providers.
+Secure: Implement a shared responsibility model for security. Leverage provider security features while ensuring application code and configurations are secure.
+Cost-Efficient: Utilize free tiers for MVP and early stages, with pay-as-you-go models for transparent and manageable scaling.
+1.2. Target Service Providers & Environments
+Frontend Hosting: Vercel.
+API Layer Hosting (tRPC based):
+Option A (MVP Simplicity): Next.js API Routes, co-hosted with the frontend on Vercel.
+Option B (Future Scalability/Isolation): Standalone Node.js application on Fly.io, Render, or Railway.
+Database: Neon (Managed PostgreSQL with pgvector extension).
+File Storage: Cloudflare R2.
+Async Task Queue: Inngest or Trigger.dev.
+Authentication: NextAuth.js (utilizing Neon for database adapter needs).
+LLM/Embedding APIs: External providers (e.g., OpenAI, Anthropic, Grok) via user-provided API keys (BYOK model).
+Environments:
+Local Development: Local tools, Ollama (for LLM/embeddings), service CLIs/emulators (Inngest Dev Server, Neon CLI with local Postgres proxy if desired).
+Preview/Staging: Vercel Preview Deployments for frontend/Next.js API. Dedicated "staging" or "development" configurations/projects for Neon, R2, Inngest, and standalone API host (if used).
+Production: Vercel production deployment, production configurations for all backend managed services.
+2. Deployment Architecture (Composed Managed Services)
+(Refer to Technical Architecture Document v1.3, Section 3.2 for detailed diagrams and component interactions.)
+2.1. Frontend Deployment (Vercel): Next.js application deployed to Vercel. Vercel handles builds, global CDN, serverless functions, HTTPS.
+2.2. API Layer Deployment (Vercel or Fly.io/Render): tRPC API. If using Next.js API Routes, deployed with frontend on Vercel. If standalone Node.js app, deployed to Fly.io/Render (typically via Docker or native buildpacks).
+2.3. Database Provisioning (Neon): Neon project with PostgreSQL and pgvector extension enabled. Connection strings secured as environment variables.
+2.4. File Storage Provisioning (Cloudflare R2): R2 bucket created. CORS policies configured. API tokens for backend access.
+2.5. Async Task Queue Provisioning (Inngest/Trigger.dev): Account setup. Functions defined in codebase and deployed via CLI. Secure signing keys/API keys for triggering tasks.
+2.6. Networking & Service Communication: Services communicate over public internet via HTTPS and authenticated API calls/SDKs. Secure credential management is paramount.
+3. Containerization Strategy (Primarily for API Layer if Standalone)
+3.1. Dockerfile Principles (for Node.js API on Fly.io/Render)
+Multi-stage builds (builder stage for dependencies/compilation, lean final stage).
+Run applications as non-root users (e.g., USER node).
+Minimize layers; use COPY --chown for non-root user.
+Define HEALTHCHECK instructions.
+Scan final images for vulnerabilities (see CI/CD).
+3.2. Dockerfile Template (for Node.js/tRPC API on Fly.io/Render)
+# ---- Builder Stage ----
+FROM node:18-alpine AS builder
+WORKDIR /usr/src/app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build # Assuming 'build' script transpiles TypeScript to dist/
+
+# ---- Final Stage ----
+FROM node:18-alpine
+WORKDIR /usr/src/app
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+COPY --from=builder --chown=appuser:appgroup /usr/src/app/dist ./dist
+COPY --from=builder --chown=appuser:appgroup /usr/src/app/node_modules ./node_modules
+COPY --from=builder --chown=appuser:appgroup /usr/src/app/package*.json ./
+USER appuser
+EXPOSE 3001 # Or your API port
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD wget --quiet --spider http://localhost:3001/api/health || exit 1 # Assuming a simple health endpoint
+CMD ["node", "dist/index.js"] # Or your main server entry point
+Use code with caution.
+Dockerfile
+4. Configuration Management & Secrets
+4.1. Environment Variables per Service
+All configuration (database URLs, API keys, secrets, LLM endpoints for local dev) managed via environment variables.
+Vercel: Project Settings -> Environment Variables (scoped to Prod/Preview/Dev).
+Fly.io/Render: App Dashboard -> Environment Variables / Secrets.
+Inngest/Trigger.dev: Environment variables for functions managed in their dashboards or via deployment CLI.
+4.2. Secrets Management Strategy (Highlighting Master Encryption Key for BYOK)
+All secrets MUST be stored as environment variables on respective hosting platforms. Never commit secrets to Git.
+Master Encryption Key (CRITICAL SECRET): For the BYOK LLM feature, tenant-provided API keys are encrypted by the API layer before DB storage. The master key for this encryption is a top-tier secret.
+Store as a highly secure environment variable ONLY for the API layer.
+Ensure strong, unique generation. Plan for rotation procedures post-MVP.
+Use .env.example for local development guidance. Local .env files (gitignored) for actual values.
+5. CI/CD Pipeline (GitHub Actions)
+5.1. Workflow Triggers & Branching Strategy
+main branch: Production deployments.
+develop or staging branch: Staging/Preview deployments.
+feature/* branches: Branched off develop. PRs trigger checks and Vercel preview deployments.
+5.2. Frontend CI/CD (Vercel Integrated)
+GitHub repository connected to Vercel.
+Vercel automatically builds, tests (if test script in package.json), and deploys.
+5.3. Backend API CI/CD (GitHub Actions to Fly.io/Render - if separate API)
+Workflow: Checkout -> Setup Node/Docker -> Install Deps -> Lint -> Test -> Build (Node.js app or Docker image) -> Push image to GHCR (if Docker) -> Deploy to Fly.io/Render (via CLI or deploy hook).
+Include Docker image vulnerability scan if building images.
+5.4. Async Task Function CI/CD (Inngest/Trigger.dev CLI in GitHub Actions - with Dependencies)
+Workflow: Checkout -> Setup Node/Python (as needed for functions) -> Install Deps (including parsers for DOCX, JSON, CSV, MD) -> Deploy functions using inngest-cli deploy or triggerdev deploy.
+5.5. Database Migrations in CI/CD (Drizzle Kit for Neon - Emphasized)
+Critical Step: Integrate automated database migrations into the API deployment workflow.
+Run npx drizzle-kit push:pg (or equivalent migration script npm run db:migrate) against the target Neon database (staging/production) using a secure DB connection string from GitHub secrets.
+This should occur before the new application code that depends on schema changes is fully live. For zero-downtime, this might involve deploying new code to a "canary" instance, running migrations, then shifting traffic. For MVP, a brief maintenance window or careful sequencing is acceptable.
+Always test migrations in staging first.
+5.6. Image Scanning (if custom Docker images are built for API)
+Use Trivy or Snyk Docker scan in GitHub Actions workflow before pushing/deploying.
+5.7. Rollback Strategies
+Vercel, Fly.io/Render: Utilize platform-native rollback features to previous deployments.
+Neon: Point-in-Time Recovery (PITR) for database state.
+Inngest/Trigger.dev: Re-deploy previous function versions (if versioned in Git).
+Application code should be in Git, allowing rollback by deploying a previous commit.
+6. Monitoring, Logging, and Alerting
+6.1. Leveraging Provider Dashboards & Tools: First line of monitoring (Vercel, Neon, Fly.io/Render, R2, Inngest dashboards for usage, basic logs, performance).
+6.2. APM - Sentry: Integrate with Next.js frontend and Node.js tRPC API for error tracking and performance monitoring.
+6.3. Structured Logging & (Future) Centralized Aggregation:
+API and Async Functions use structured JSON logging (e.g., Pino).
+Future: Forward logs from Vercel, Fly.io/Render, Inngest to a log aggregation service (Logtail, Better Stack, Axiom).
+6.4. Uptime Monitoring: External service (UptimeRobot, Better Uptime) for public frontend and API endpoints.
+6.5. Alerting Strategy & Thresholds: Configure alerts in Sentry, Uptime Monitor, and where possible, within managed service provider dashboards (e.g., Neon usage alerts, Vercel error rate alerts). Define manual check thresholds for resource utilization.
+6.6. (Future) Distributed Tracing: (e.g., OpenTelemetry) if service interactions become highly complex.
+7. Scaling Strategy (Leveraging Managed Service Capabilities)
+Application code (frontend, API, async functions) must be stateless to leverage platform scaling.
+Vercel/Fly.io/Render: Auto-scale serverless functions or container instances based on load and plan.
+Neon: Serverless compute scales on demand. Storage is scalable. Read replicas available on paid plans.
+Inngest/Trigger.dev & Cloudflare R2: Architected for high scalability. Upgrade plans if hitting service limits.
+8. Backup and Recovery (Relying on Managed Service Features)
+8.1. Database Backups (Neon): Neon provides automated continuous protection and Point-in-Time Recovery (PITR). Understand and configure retention policies according to your plan and needs.
+8.2. File Storage Durability (Cloudflare R2): R2 is designed for 11 nines of durability. Enable object versioning for additional protection against accidental overwrites/deletions.
+8.3. Application Code & Configuration: Code versioned in Git. Environment variables/secrets managed (and backed up conceptually) by hosting platforms.
+8.4. Recovery Plan & Testing: Document procedures for restoring services (primarily Neon PITR, re-deploying code from Git). Test Neon PITR to a staging/dev environment periodically.
+9. Security in Deployment (Shared Responsibility Model - Emphasizing BYOK Key Security)
+9.1. HTTPS Enforcement (Provider Handled): Vercel, Fly.io/Render, Cloudflare provide automatic SSL/TLS.
+9.2. Platform Access Control & IAM: Secure all managed service provider accounts with strong, unique passwords and Multi-Factor Authentication (MFA) enabled everywhere. Use principles of least privilege for any team members or service accounts.
+9.3. Application-Level Security: Your responsibility (OWASP Top 10, secure coding practices, robust NextAuth.js configuration, input validation for all user-supplied data including prompts and widget settings).
+9.4. Secrets Management (Reiteration & Secure BYOK Key Handling):
+All service API keys, DB connection strings, and application secrets (like NextAuth.js JWT secret, Master Encryption Key for BYOK) stored securely as environment variables on hosting platforms.
+BYOK LLM API Key Security: The application (API layer) is responsible for encrypting tenant-provided LLM keys (using the Master Encryption Key) before DB storage and decrypting them only in memory when needed. This master key is the most critical application secret.
+10. Operational Considerations & Runbook Snippets (Conceptual)
+Document common tasks:
+"How to check deployment status/logs on Vercel/Fly.io."
+"How to monitor Neon database performance/usage."
+"How to view Inngest/Trigger.dev function logs and execution history."
+"Procedure for adding/updating a sensitive environment variable (e.g., LLM provider API key for platform use, Master Encryption Key)."
+"Emergency contact points for managed service provider support."
+11. Conclusion
+This DevOps plan (v1.3) for Approach 3 focuses on leveraging the strengths of composed managed services to achieve a scalable, reliable, and secure deployment for the enhanced RAG Chatbot Platform. By automating deployments through CI/CD targeting these services, and relying on their built-in operational capabilities, the solo developer can focus more on application features and less on infrastructure management, while ensuring robust practices for configuration, security, and recovery are in place for new features like BYOK key handling and diverse document processing.

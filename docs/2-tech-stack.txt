@@ -1,0 +1,205 @@
+Document 2: Technical Architecture Document (Revised)
+File Name: docs/technical-architecture-v1.3.md
+Version: 1.3
+Date: June 8, 2025
+Purpose: Outlines the system architecture, technology stack, data flow, and integration points for the RAG Chatbot Platform. This version details a phased development approach leveraging local tools for RAG PoC and composed managed cloud services for an enhanced MVP with features like multiple prompt management, expanded knowledge base capabilities (DOCX, JSON, CSV, manual text), basic widget configuration, and BYOK LLM.
+Table of Contents
+Overview
+1.1. Architectural Goals (Aligned with PRD v1.3)
+1.2. System Philosophy (Managed Services & Phased Approach)
+Phase 1: Local RAG Pipeline & Basic UI (Proof of Concept) Architecture
+2.1. Objective & Scope
+2.2. Technology Stack (Phase 1)
+2.3. Architecture Diagram & Data Flow (Phase 1)
+Phase 2: Core Platform MVP Architecture (Composed Managed Services - Enhanced Features)
+3.1. Objective & Scope (Aligned with PRD v1.3 MVP)
+3.2. High-Level Architecture Diagram (Phase 2 - Visual & Text)
+3.3. Component Breakdown (Phase 2 - Updated Responsibilities for Enhanced MVP)
+3.4. Technology Stack (Phase 2 - Including new parsers/libraries)
+3.5. Data Flow (Phase 2 - Updated for new features)
+* User Authentication & BYOK LLM Key Management (NextAuth.js)
+* Bot Creation & Core Configuration
+* Knowledge Base Management (incl. DOCX, JSON, CSV, Manual Text)
+* System Prompt Management (Multiple Named Prompts per Bot)
+* Widget Configuration & Embedding
+* RAG Query (Utilizing Active Prompt & BYOK LLM)
+* Analytics (Conceptual)
+Integration Points (Phase 2 - Managed Services)
+4.1. Frontend Hosting (Vercel)
+4.2. API Layer Hosting (Vercel or Fly.io/Render for tRPC)
+4.3. Database (Neon - PostgreSQL + pgvector)
+4.4. Authentication (NextAuth.js)
+4.5. File Storage (Cloudflare R2)
+4.6. Async Task Queue (Inngest/Trigger.dev)
+4.7. LLM & Embedding APIs (User's BYOK - OpenAI, Anthropic, Grok, etc.)
+4.8. Monitoring & Analytics Services (Sentry, PostHog Cloud)
+Scalability and Performance (Managed Services Context)
+5.1. General Approach
+5.2. Database Connection Pooling (for API layer)
+5.3. Caching Strategies (Conceptual)
+Security Considerations (Shared Responsibility Model, BYOK Key Handling)
+6.1. Data Encryption (At Rest, In Transit)
+6.2. Secure Inter-Service Communication & API Key Management
+6.3. Application-Level Input Validation
+6.4. General Security Measures
+Modularity & Extensibility (Swapping Managed Services & Service Abstractions)
+7.1. Service Abstraction Interfaces (Conceptual for API Layer)
+7.2. Future Architectural Evolution
+API Versioning (for tRPC/Node.js API if applicable)
+Database Schema & Migrations Overview (Referring to Document 4 v1.3)
+Conclusion
+1. Overview
+1.1. Architectural Goals (Aligned with PRD v1.3)
+To deliver a scalable, performant, secure, and maintainable RAG Chatbot Platform by:
+Validating core RAG quality with a local proof-of-concept (Phase 1).
+Leveraging best-in-class managed cloud services for the MVP (Phase 2) to accelerate development, reduce operational overhead, and ensure reliability for an enhanced feature set including multi-prompt management, expanded knowledge base capabilities (DOCX, JSON, CSV, manual text), basic widget configuration, and a Bring-Your-Own-Key (BYOK) LLM model.
+Supporting the features and Non-Functional Requirements (NFRs) outlined in PRD v1.3.
+Enabling efficient AI-assisted development through clear interfaces, modern tooling, and well-defined service boundaries.
+1.2. System Philosophy (Managed Services & Phased Approach)
+The platform will be developed in phases:
+Phase 1: Focus on achieving high-quality RAG locally with minimal infrastructure, iterating rapidly on document processing, embedding, retrieval, and prompting strategies.
+Phase 2 (MVP): Build the full SaaS platform by composing specialized, managed cloud services for each core function (frontend hosting, API hosting, database, vector storage, file storage, authentication, async task queues). This approach prioritizes developer experience, leverages provider expertise for scalability and reliability, and allows the solo developer to focus on application logic.
+2. Phase 1: Local RAG Pipeline & Basic UI (Proof of Concept) Architecture
+2.1. Objective & Scope
+Objective: Rapidly iterate on and validate the core RAG pipeline (document loading from PDF, TXT, DOCX, JSON, CSV; chunking; embedding; vector storage/retrieval; prompting; LLM generation) to ensure high-quality responses before investing in full platform infrastructure.
+Scope: Local machine development only. Minimal UI for testing. No user accounts, no cloud services integration, no persistent application metadata database.
+2.2. Technology Stack (Phase 1)
+RAG Logic & Orchestration: Python with LangChain/LlamaIndex (recommended for rich document loaders and text processing algorithms) or TypeScript with LangChain.js/LlamaIndex.TS.
+Local LLM & Embeddings: Ollama (e.g., Llama-3-8B-Instruct for generation, nomic-embed-text or bge-small-en-v1.5 for embeddings) running on the host machine.
+Local Vector Store:
+Option A (Simplest for quick iteration): LanceDB (Python library, zero-setup, file-based).
+Option B (Closer to Phase 2): PostgreSQL (Docker) with the pgvector extension.
+Parsing Libraries (Python Example): pypdf2/PyMuPDF, python-docx, csv, json standard libraries, or preferably abstracted via LangChain/LlamaIndex Document Loaders.
+Test UI (Optional but recommended): Ultra-minimal Next.js page (calling a simple local Python/TS backend API) or a Python Streamlit/Gradio app.
+Development Environment: VSCode with Python/Node.js, potentially Dev Containers.
+2.3. Architecture Diagram & Data Flow (Phase 1 - Conceptual)
+[Local Files (PDF,TXT,DOCX,JSON,CSV)] -> [Python/TS Script (Load with appropriate parser, Chunk)] -> [Ollama (Embed)] -> [LanceDB / Local pgvector (Store Vectors & Chunks)]
+[Test UI/CLI Query] -> [Python/TS Script (Generate Query Embedding w/ Ollama)] -> [LanceDB / Local pgvector (Retrieve Top-K Chunks)] -> [Python/TS Script (Construct Prompt with Chunks & Query)] -> [Ollama (Generate Response)] -> [Test UI/CLI Display (Response + Retrieved Chunks for analysis)]
+Data Flow: Purely local, designed for a tight feedback loop to test and refine RAG parameters, prompt templates, and data processing for various document types.
+3. Phase 2: Core Platform MVP Architecture (Composed Managed Services - Enhanced Features)
+3.1. Objective & Scope (Aligned with PRD v1.3 MVP)
+Objective: Build and deploy the initial public offering of the RAG Chatbot SaaS platform, incorporating the validated RAG core logic from Phase 1, and providing core features F1-F10 from PRD v1.3.
+Scope: Full SaaS application with user authentication (including BYOK LLM key management), bot creation (with diverse KB sources & multiple prompt management), widget configuration, bot testing, basic analytics, and admin oversight, all deployed on managed cloud services.
+3.2. High-Level Architecture Diagram (Phase 2 - Visual & Text)
+(Visual Diagram - Mermaid):
+graph LR
+    subgraph User_Interaction
+        A[Client: Next.js on Vercel]
+    end
+
+    subgraph API_Auth_Layer ["API & Auth Layer"]
+        B[API: tRPC on Next.js (Vercel) / Node.js (Fly.io/Render)]
+        C[Auth: NextAuth.js]
+    end
+
+    subgraph Data_Storage_Layer ["Data & Storage Layer"]
+        D[DB: Neon (Postgres + pgvector + App Metadata)]
+        E[Storage: Cloudflare R2 (User Documents)]
+    end
+
+    subgraph Async_Processing_AI ["Async Processing & AI Services"]
+        F[Queue & Workers: Inngest / Trigger.dev]
+        G[LLM/Embedding APIs: User's BYOK Cloud APIs (OpenAI, Anthropic, etc.)]
+        H[Local Dev LLM: Ollama] -- Local Dev Only --> F
+        H -- Local Dev Only --> B
+    end
+
+    subgraph Observability ["Observability"]
+        I[Error Tracking: Sentry]
+        J[Product Analytics: PostHog Cloud]
+    end
+
+    A -- HTTPS / tRPC --> B
+    B -- Uses --> C
+    B -- Drizzle ORM --> D
+    B -- Generates Presigned URLs --> E
+    A -- Uploads Directly To --> E
+    B -- Triggers Task --> F
+    F -- Processes Docs From --> E
+    F -- Generates Embeddings via --> G
+    F -- Stores Vectors/Chunks In --> D
+    B -- Retrieves Vectors/Chunks From --> D
+    B -- Orchestrates RAG Query via --> G
+    
+    A -.-> I
+    B -.-> I
+    A -.-> J
+    B -.-> J
+Use code with caution.
+Mermaid
+(Text-Based Diagram):
+[Next.js Client on Vercel] ↔ [tRPC API Layer (on Vercel or Fly.io/Render) with NextAuth.js] ↔ [Neon (PostgreSQL +pgvectorfor app data, prompts, widget configs, vectors), Cloudflare R2 (Document Storage), Inngest/Trigger.dev (Async Document Processing)] ↔ [User's BYOK Cloud LLM/Embedding APIs]
+(Sentry & PostHog Cloud for Observability)
+3.3. Component Breakdown (Phase 2 - Updated Responsibilities for Enhanced MVP)
+Next.js Client (Vercel): Provides the full User Interface (approx. 13 core views as per UI Doc v1.3) for all MVP features, including user account settings (profile, BYOK LLM key management), bot creation/editing (KB uploads including diverse file types, manual text input, prompt management, RAG/LLM config, widget settings), bot testing, analytics, and template gallery. Uses tRPC client for API communication.
+API Layer (tRPC on Next.js API Routes or standalone Node.js on Fly.io/Render):
+Handles all business logic defined in API Contract v1.3.
+Manages user sessions via NextAuth.js.
+Securely stores/retrieves (encrypted) tenant LLM API keys from tenant_settings in Neon.
+Performs CRUD operations on all data entities (Users, Bots, BotDocuments, BotPrompts, WidgetConfigs, etc.) in Neon via Drizzle ORM.
+Generates presigned URLs for direct client uploads to Cloudflare R2.
+Triggers asynchronous document processing tasks via Inngest/Trigger.dev.
+Orchestrates RAG queries: fetches active prompt, retrieves relevant chunks from Neon (pgvector), constructs final prompt, calls the appropriate user-configured cloud LLM API, and streams responses.
+Database (Neon): Managed PostgreSQL with pgvector extension. Stores all application metadata as defined in DB Schema v1.3 (users, plans, tenant_settings for BYOK, bots with active prompt & LLM config, bot_prompts, bot_documents with sourceType, bot_document_chunks with embeddings, widget_configurations, templates, analytics).
+Authentication (NextAuth.js): Integrated into the API Layer. Manages user signup, login (email/pass, OAuth), sessions, and provides user identity to tRPC procedures. Uses Neon for its database adapter.
+File Storage (Cloudflare R2): Stores all user-uploaded documents (PDF, TXT, DOCX, JSON, CSV). Files are uploaded directly by the client using presigned URLs.
+Async Task Queue & Workers (Inngest/Trigger.dev): Managed service for background jobs. Key responsibilities:
+Document Ingestion Pipeline: Triggered after file upload to R2 or manual text submission.
+Downloads/accesses source content.
+Parses diverse document types (PDF, TXT, DOCX, JSON, CSV, Markdown) using appropriate libraries (e.g., LangChain/LlamaIndex Document Loaders).
+Chunks text.
+Calls cloud Embedding API (using user's BYOK embedding provider key, or a default if applicable) to generate vectors.
+Stores text chunks and vector embeddings in Neon (bot_document_chunks table).
+Updates bot_documents.status and bots.status in Neon.
+LLM & Embedding APIs (User's BYOK - OpenAI, Anthropic, Grok, etc.): External cloud services. The API Layer and Async Task Workers interact with these using tenant-provided API keys.
+Local LLM (Ollama): Used during local development only, by API/async tasks (via config switch) for cost-free iteration on RAG logic and prompting.
+Monitoring & Analytics Services (Sentry, PostHog Cloud): Integrated for error tracking and product analytics respectively.
+3.4. Technology Stack (Phase 2 - Including new parsers/libraries)
+Frontend: Next.js (v14+), React, TypeScript, shadcn/ui, Tailwind CSS, tRPC Client, Zustand or TanStack Query.
+Backend API: Node.js (v18+) with TypeScript, tRPC (hosted on Next.js API routes or separate server like Fly.io/Render).
+Database: PostgreSQL (v16+ compatible) with pgvector extension (via Neon).
+ORM: Drizzle ORM with drizzle-kit.
+Authentication: NextAuth.js.
+File Storage: Cloudflare R2 (accessed via AWS S3 SDK for presigned URLs and backend operations).
+Async Task Queue: Inngest or Trigger.dev (using their TypeScript/Python SDKs).
+Document Parsing (within Async Tasks): LangChain.js/LlamaIndex.TS (or Python versions) for robust multi-format Document Loaders (PDF, DOCX, TXT, JSON, CSV, MD). Fallback to individual parsers like mammoth (DOCX), csv-parse if needed.
+LLM/Embeddings APIs (BYOK): Client libraries for OpenAI, Anthropic, etc.
+Local LLM Dev: Ollama.
+Deployment: Vercel, Fly.io/Render, Neon Cloud, Cloudflare, Inngest/Trigger.dev Cloud.
+Monitoring/Analytics: Sentry SDK, PostHog SDK.
+Testing: Vitest, React Testing Library, Playwright, k6.
+3.5. Data Flow (Phase 2 - Updated for new features)
+(Key flows outlined in PRD v1.3, Section 5. Detailed here from a technical perspective)
+User Authentication & BYOK LLM Key Management: NextAuth.js handles auth flows, storing session/user data in Neon. tRPC procedures manage CRUD for encrypted LLM API keys in tenant_settings table in Neon.
+Bot Creation & Core Configuration: User input via Next.js UI -> tRPC API -> saves bot metadata (including activeLlmConfigProvider and ragConfig) to bots table in Neon.
+Knowledge Base Management:
+File Upload: Client requests presigned URL from tRPC API -> Client uploads to R2 -> Client confirms upload via tRPC API -> API triggers Inngest task.
+Manual Text: Client submits text via tRPC API -> API triggers Inngest task with text content.
+Inngest Task: Fetches/receives content -> Parses (PDF, DOCX, JSON, CSV, TXT, MD) -> Chunks -> Calls user's configured Embedding API (via BYOK key) -> Stores chunks & vectors in bot_document_chunks (pgvector) in Neon. Updates bot_documents.status.
+System Prompt Management: User CRUDs prompts via Next.js UI -> tRPC API -> updates bot_prompts table in Neon. setActive procedure updates bots.activePromptId and ensures only one prompt is active per bot.
+Widget Configuration & Embedding: User updates widget settings via Next.js UI -> tRPC API -> updates widget_configurations table in Neon. Embed code (iframe) points to a Next.js page that fetches bot and widget config to render the chat.
+RAG Query: User query (UI/Widget) -> tRPC API -> API fetches bot config, active prompt (from bot_prompts), and user's LLM API key (from tenant_settings) -> Generates query embedding -> Retrieves chunks from pgvector (Neon) -> Constructs final prompt -> Calls user's LLM API -> Streams response.
+4. Integration Points (Phase 2 - Managed Services)
+(As defined in Tech Arch v1.2, Section 4. Reconfirm that each managed service SDK/API is used correctly for the expanded features).
+5. Scalability and Performance (Managed Services Context)
+General Approach: Rely on the auto-scaling or tier-based scaling of individual managed services (Vercel, Neon, R2, Inngest, Fly.io/Render).
+Database Connection Pooling (for API layer): Ensure API layer (if standalone Node.js app) uses efficient connection pooling (e.g., via Drizzle ORM with pg driver) when connecting to Neon, respecting Neon's connection limits. Vercel's serverless functions manage connections differently.
+Caching Strategies (Conceptual):
+API Responses: For frequently accessed, non-dynamic data (e.g., list of templates, public bot info), consider caching at the API layer (in-memory with TTL, or managed Redis like Upstash - Post-MVP).
+RAG Query Results (Advanced): Caching LLM responses for identical queries on identical contexts can save LLM costs but is complex due to context variability.
+Frontend: Vercel's CDN for static assets and ISR/SSR for page caching.
+6. Security Considerations (Shared Responsibility Model, BYOK Key Handling)
+(As defined in Tech Arch v1.2, Section 7, and DevOps v1.3, Section 9).
+Crucial Emphasis: Secure application-level encryption, storage, and in-memory handling of tenant-provided LLM API keys. The Master Encryption Key for this process is a paramount secret for the API layer.
+Input validation for all user-provided content (prompts, manual KB text, widget settings).
+7. Modularity & Extensibility (Swapping Managed Services & Service Abstractions)
+Service Abstraction Interfaces (Conceptual for API Layer): Define interfaces in the tRPC API layer for interactions with external services (e.g., ILlmService, IStorageService, IQueueService, IAuthServiceAdapter). This decouples business logic from specific SDKs, making it easier to swap providers.
+Future Architectural Evolution: (As in Tech Arch v1.2 - potential for microservices if parts of tRPC API become too large/complex).
+8. API Versioning (for tRPC/Node.js API if applicable)
+While tRPC's type safety reduces some need for traditional versioning, if breaking changes are made to procedure inputs/outputs, consider evolving the tRPC router (e.g., appRouterV1, appRouterV2) or managing changes carefully with client updates.
+9. Database Schema & Migrations Overview (Referring to Document 4 v1.3)
+The PostgreSQL schema on Neon, managed by Drizzle ORM, includes tables for users, plans, tenant_settings (BYOK keys), bots (with active prompt/LLM config), bot_prompts, bot_documents (with sourceType), bot_document_chunks (pgvector), widget_configurations, templates, analytics, and feedback.
+Refer to Document 4 (Database Schema v1.3) for detailed Drizzle definitions.
+Migrations are managed via drizzle-kit and applied during CI/CD (see DevOps Doc v1.3).
+10. Conclusion
+This Technical Architecture Document (v1.3) details a modern, scalable, and flexible approach for building the enhanced RAG Chatbot Platform MVP by composing specialized managed cloud services. It supports the expanded feature set of PRD v1.3, including diverse knowledge base handling, multi-prompt management, widget configuration, and BYOK LLM integration. The phased approach, starting with local RAG validation, ensures core quality, while the managed services model allows the solo developer to focus on application innovation and user experience.

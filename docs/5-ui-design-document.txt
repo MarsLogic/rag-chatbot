@@ -1,0 +1,185 @@
+Document 5: User Interface (UI) Design Document (Revised)
+File Name: docs/ui-design-v1.3.md
+Version: 1.3
+Date: June 8, 2025
+Purpose: Describes the layout, components, user interactions, and design principles for the GUI pages of the RAG Chatbot Platform's enhanced MVP. This document guides AI-assisted development of Next.js components using shadcn/ui and Tailwind CSS, prioritizing user experience, accessibility, and responsiveness, and reflects a tRPC-based API and BYOK LLM model.
+Table of Contents
+Overview
+1.1. Design Philosophy
+1.2. UI Toolkit
+1.3. General Layout Conventions
+1.4. Responsive Design Principles
+1.5. Accessibility (A11y) Commitment
+1.6. Loading States & Feedback Mechanisms
+Common UI Elements & Patterns
+2.1. Navigation Bar (Top)
+2.2. Sidebar Navigation (Authenticated Users)
+2.3. Buttons (with Usage Guidance)
+2.4. Forms (with Field Specificity Guidance)
+2.5. Modals (Dialogs)
+2.6. Tables (with Responsive Handling)
+2.7. Notifications/Toasts
+2.8. Empty States
+2.9. Tooltips
+GUI Pages (Phase 2 Core Platform MVP - Enhanced)
+3.1. Login Page
+3.2. Signup Page
+3.3. Forgot Password Page
+3.4. Account Settings Page (Tabbed, with LLM BYOK Configuration)
+3.5. Dashboard Page
+3.6. Create Bot Page (Multi-Step Wizard, with LLM Selection & Expanded Doc Types)
+3.7. Bot List Page (Updated Actions)
+3.8. Bot Detail / Edit Page (Restructured with New Tabs)
+* 3.8.1 General Settings Tab
+* 3.8.2 Knowledge Base Tab (Enhanced)
+* 3.8.3 Prompts Tab (New)
+* 3.8.4 AI Configuration Tab
+* 3.8.5 Widget & Embed Tab (New/Enhanced)
+* 3.8.6 Delete Bot Section / Confirmation Modal
+3.9. Test Bot Page (Utilizing Active Prompt)
+3.10. Analytics Overview Page
+3.11. Bot-Specific Analytics Page
+3.12. Template Gallery Page
+3.13. Admin Dashboard Page (Tabbed, MVP Scope)
+1. Overview
+1.1. Design Philosophy
+Clean and Modern: Aesthetically pleasing, uncluttered interface with clear visual hierarchy.
+Intuitive: Easy to understand and navigate, even for users less familiar with AI concepts. Workflows should feel natural.
+Efficient: Users should be able to complete core tasks quickly and with minimal friction.
+Consistent: Uniform design language, component usage, and interaction patterns across all pages.
+Informative: Provide users with clear feedback, status updates, and helpful guidance.
+1.2. UI Toolkit
+Primary Component Library: shadcn/ui (built on Radix UI and Tailwind CSS). Provides accessible, customizable, and unstyled components as a foundation.
+Styling: Tailwind CSS for utility-first styling, enabling rapid development and consistent design.
+Icons: lucide-react for clear, modern iconography used consistently throughout the application.
+1.3. General Layout Conventions
+Unauthenticated Pages (Login, Signup, Forgot Password): Centered content card/form on a simple, clean background to focus user attention.
+Authenticated Pages:
+Layout Shell: A common layout wrapper including a Top Navigation Bar and a collapsible Sidebar (see Sections 2.1, 2.2).
+Main Content Area: Padded area for page-specific content, typically with a prominent page title (<h1>).
+Breadcrumbs (Optional Post-MVP): For navigating deeply nested sections.
+1.4. Responsive Design Principles
+All pages must be fully responsive and provide an optimal, accessible experience on desktop, tablet, and mobile devices.
+Tailwind CSS responsive prefixes (sm:, md:, lg:) will be consistently used.
+Mobile-first considerations will guide layout choices for core elements.
+Complex data displays like tables will transform into mobile-friendly layouts (e.g., card-based lists).
+Navigation elements (e.g., sidebar) will adapt for smaller screens.
+1.5. Accessibility (A11y) Commitment
+Strict adherence to Web Content Accessibility Guidelines (WCAG) 2.1 Level AA is a core requirement.
+Utilize semantic HTML5 elements.
+Ensure all interactive elements are keyboard navigable, with clearly visible focus states (FocusRing from shadcn/ui or custom).
+Correctly use ARIA attributes where shadcn/ui defaults are insufficient or for custom components to provide context to assistive technologies.
+Maintain sufficient color contrast for all text and UI elements against their backgrounds.
+Properly manage focus for modals, dialogs, and dynamic content. Use ARIA live regions for important asynchronous updates (e.g., chat messages, status changes, toasts).
+1.6. Loading States & Feedback Mechanisms
+Loading States: Crucial for good UX when interacting with the tRPC API and asynchronous operations:
+Buttons: On click for mutations, disable button and show a spinner icon (e.g., Loader2 from lucide-react) within or next to the button text.
+Content Areas/Page Sections: When fetching data via tRPC queries, use skeleton loaders (Skeleton from shadcn/ui) for affected content areas to prevent layout shifts and indicate activity.
+File Uploads: Individual progress bars per file and an overall progress/status indicator.
+Full Page Load (Initial): Consider a subtle page-level loading indicator if initial data fetching is significant.
+Feedback Mechanisms:
+Toasts (Toast, useToast from shadcn/ui): For non-critical success messages (e.g., "Settings saved," "Bot created," "Prompt activated") or general informational messages. Position consistently (e.g., top-right).
+Inline Errors (Form Fields): For Zod validation errors returned from tRPC, display messages directly below the respective input fields, styled distinctively (e.g., red text).
+Alerts (Alert, AlertDescription, AlertTitle from shadcn/ui): For more prominent page-level errors, warnings, or important informational messages that don't require modal interruption (e.g., "Failed to connect to your LLM provider. Check API Key.", "You've reached your monthly query limit."). Use appropriate variants (destructive, warning).
+2. Common UI Elements & Patterns
+2.1. Navigation Bar (Top) (Authenticated Layout)
+Position: Fixed at the top, standard height.
+Content (Left): (If sidebar is collapsible on desktop) Hamburger Menu Icon (Menu from lucide-react) to toggle sidebar. Platform Logo/Name.
+Content (Center - Optional): Global Search Bar (Input with Search icon) - "Search bots, documents, prompts..."
+Content (Right): User Profile Dropdown (DropdownMenu from shadcn/ui): Trigger (User avatar or initials/name). Items: "Account Settings," "Logout." (Future: Billing, Help). Notification Bell Icon (Bell - Post-MVP).
+2.2. Sidebar Navigation (Authenticated Users)
+Position: Fixed on the left, collapsible (icon-only when collapsed, full text when expanded). Default expanded on desktop, collapsed (overlay or push content) on mobile triggered by hamburger icon.
+Content (Links with lucide-react icons and text):
+LayoutDashboard: Dashboard
+Bot: My Bots
+PlusCircle: Create New Bot
+FileText: Knowledge Bases (if a central KB view is added later)
+MessageSquare: Prompts (if a central prompt library is added later)
+LayoutGrid: Template Gallery
+BarChart3: Analytics
+Settings: Account Settings (Alternatively accessed only via Top Nav dropdown)
+ShieldCheck: Admin Dashboard (Conditional rendering for admin role)
+Active State: Visually highlight the current page link (background, accent color, or font weight).
+2.3. Buttons (with Usage Guidance) (Button from shadcn/ui)
+(As defined in v1.2 - Primary, Secondary, Destructive, Link variants. Consistent icon usage).
+2.4. Forms (with Field Specificity Guidance) (Form, Input, Label, Select, Checkbox, Textarea from shadcn/ui)
+(As defined in v1.2 - Vertical stacking, Zod/react-hook-form validation, clear error messages, loading state on submit button. Provide detailed field specs: Label, Type, Placeholder, Required/Optional, Default, Validation conceptuals).
+2.5. Modals (Dialogs) (Dialog from shadcn/ui)
+(As defined in v1.2 - Confirmations, quick forms, info display. Standard structure, focus management, Escape key closure).
+2.6. Tables (with Responsive Handling) (Table from shadcn/ui)
+(As defined in v1.2 - Sorting, pagination, row actions. Crucially, on mobile/small tablet, transform rows into card-based layouts displaying key info vertically with labels).
+2.7. Notifications/Toasts (Toast, useToast from shadcn/ui) (As defined in v1.2).
+2.8. Empty States (As defined in v1.2 - Icon, message, CTA for lists/galleries).
+2.9. Tooltips (Tooltip from shadcn/ui)
+Use for icon-only buttons or to provide additional context for complex settings without cluttering the UI. Keep tooltip text concise.
+3. GUI Pages (Phase 2 Core Platform MVP - Enhanced)
+(Phase 1 Local RAG PoC uses a minimal, developer-focused UI not detailed here.)
+3.1. Login Page (/login) (As defined in v1.2)
+3.2. Signup Page (/signup) (As defined in v1.2)
+3.3. Forgot Password Page (/forgot-password) (As defined in v1.2)
+3.4. Account Settings Page (/account/settings) (Tabbed, with LLM BYOK Configuration)
+Layout: Authenticated layout shell. <h1>: "Account Settings".
+Tabs (Tabs from shadcn/ui): "Profile", "Password", "LLM API Keys". (2FA Tab Post-MVP).
+Profile Tab: Form with fields:
+Name (Label: "Full Name", Input: text).
+Email (Label: "Email Address", Display: read-only text, Note: "Contact support to change your email.").
+Button (Primary): "Save Profile".
+Password Tab: Form (hidden if OAuth-only): Current, New, Confirm New Password. Button (Primary): "Update Password".
+LLM API Keys Tab (BYOK Model):
+<h2>: "Manage LLM API Keys". Paragraph: "Connect your LLM providers..."
+For each supported provider (e.g., OpenAI, Anthropic, Grok):
+<h3>: Provider Name. Display status: "Connected (Validated [Date])" or "Not Configured".
+Input (Label: "[Provider] API Key", Type: password, Placeholder: "Enter your API key").
+Button (Primary): "Save & Test Key". On success: Update status, show success Toast. On failure: Show error Toast/Alert, status remains "Not Configured" or "Test Failed".
+Button (variant="destructive" if key configured): "Disconnect Key" (with confirmation modal).
+3.5. Dashboard Page (/dashboard) (As defined in v1.2 - Onboarding Tour Post-MVP. Show "Empty State" CTA if 0 bots.)
+3.6. Create Bot Page (/bots/create) (Multi-Step Wizard, with LLM Selection & Expanded Doc Types)
+Layout: Authenticated shell. <h1>: "Create New Chatbot". Wizard Navigation.
+Step 1: Bot Details:
+Form Fields: Bot Name (text, required), Description (textarea, optional), Start From (RadioGroup: "Blank Bot" / "From Template"), Select Template (Select, if "From Template" chosen).
+Step 2: Upload Initial Documents:
+Label: "Upload Source Documents (PDF, TXT, DOCX, JSON, CSV - Max 10MB/file, 100MB total)".
+File Upload Component (react-dropzone styled): Drag-and-drop, browse, list of staged files (name, size, progress, remove icon), overall progress/limit display.
+Step 3: AI Configuration:
+Section: "Language Model (LLM)":
+Field: LLM Provider (Label: "Select LLM for Responses", Select options from user's validated BYOK keys, or prompt to configure).
+Section: "RAG Settings" (Accordion for "Advanced"):
+Fields: Chunk Size (number, default, range), Chunk Overlap (number, default, range - Advanced), Top-K Chunks (number, default, range - Advanced). Embedding Model display (read-only, derived).
+Form Actions: "Previous," "Next," "Create Bot," "Cancel."
+3.7. Bot List Page (/bots) (Updated Actions)
+Layout, <h1>, Page Header (Search, Filter by status, "+ Create New Bot" button) as in v1.2.
+Bots Table (Table or responsive Card List):
+Columns: Bot Name, Status (Badge), Active Prompt Name, Document Count, Created At.
+Actions per Bot: Icon buttons (Settings or Edit for Bot Detail/Edit Page; MessageCircle for Test Chat; BarChart3 for Analytics) and/or a MoreHorizontal DropdownMenu for less frequent actions like "Delete."
+Empty State & Pagination.
+3.8. Bot Detail / Edit Page (/bots/{id}/edit) (Restructured with New Tabs)
+Layout: Authenticated shell. <h1>: "Manage Bot: [Bot Name]".
+Tabs (Tabs from shadcn/ui): "General", "Knowledge Base", "Prompts", "AI Configuration", "Widget & Embed".
+Page-Level Actions (e.g., sticky footer or top-right): Button (Primary): "Save All Changes", Button (variant="destructive"): "Delete This Bot" (opens confirmation modal). Alternatively, save actions per tab.
+3.8.1 General Settings Tab: Form: Bot Name (text), Bot Description (textarea).
+3.8.2 Knowledge Base Tab (Enhanced):
+<h2>: "Manage Knowledge Base".
+Section: "Upload Files" (File Upload Component for PDF, TXT, DOCX, JSON, CSV).
+Section: "Add Content Manually" (Fields: Snippet Name (text), Content (textarea). Button: "Add Snippet").
+Section: "Current Knowledge Base Sources" (Table or Card List: Source Name, Type (File/Manual/etc.), Status (Badge), Date Added. Actions: Delete (Trash2)).
+3.8.3 Prompts Tab (New):
+<h2>: "Manage System Prompts". Button (Primary): "+ Create New Prompt".
+New/Edit Prompt Form (Modal/Inline Form): Fields: Prompt Name (text, required), Prompt Content (textarea, required, supports Markdown preview potentially), Checkbox "Set as Active". "Save Prompt" / "Cancel".
+List of Existing Prompts (Table or Card list): Display: Name, Snippet of Content, Active (Badge). Actions: Edit, Delete, "Set Active".
+3.8.4 AI Configuration Tab:
+<h2>: "AI & RAG Settings".
+Form: LLM Provider Selection (from user's BYOK list), RAG Settings (Chunk Size, Overlap, Top-K).
+3.8.5 Widget & Embed Tab (New/Enhanced):
+<h2>: "Embed Chatbot".
+Section: "Embed Code & Links" (Display/Copy: Sharable Link, Iframe Code).
+Section: "Widget Customization (Basic)" (Form: Header Text (text), Primary Color (color picker/text), Initial Greeting (textarea). Button: "Save Widget Settings").
+Section: "Live Preview" (Embedded widget reflecting current settings).
+3.8.6 Delete Bot Section / Confirmation Modal: Usually triggered from page-level actions or General Settings tab. Modal as defined in v1.2.
+3.9. Test Bot Page (/bots/{id}/test) (Utilizing Active Prompt)
+(As in v1.2, but ensure it uses bot's active prompt and configured BYOK LLM. Display user-friendly error if LLM key is invalid/missing).
+Source display section below bot responses is crucial.
+3.10. Analytics Overview Page (/analytics) (As in v1.2)
+3.11. Bot-Specific Analytics Page (/analytics/bots/{id}) (As in v1.2)
+3.12. Template Gallery Page (/templates) (As in v1.2, with "Preview" more prominent than or equal to "Use Template" on cards).
+3.13. Admin Dashboard Page (/admin/dashboard) (Tabbed, MVP Scope) (As in v1.2: Tabs for Overview (basic stats), User Management, Bot Management. Tables responsive).
+This revised UI Design Document (v1.3) now fully supports the enhanced MVP features from PRD v1.3. It details the UI for BYOK LLM key management, comprehensive knowledge base inputs, multiple prompt management per bot, and basic widget configuration with live preview, all while maintaining a consistent and user-friendly experience.

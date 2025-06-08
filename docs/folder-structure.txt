@@ -1,0 +1,124 @@
+RAG-CHATBOT/
+├── .next/                  # Next.js build output, artifacts, and cache (summarized)
+├── docs/                   # Project documentation
+│   ├── 1-prd.txt
+│   ├── 2-tech-stack.txt
+│   ├── 3-api-spec-document.txt
+│   ├── 4-database-schema.txt
+│   ├── 5-ui-design-document.txt
+│   ├── 6-deployment-devops-document.txt
+│   ├── 7-testing-and-validation-document.txt
+│   └── MASTER_CONTROL_PROMPT.md
+├── node_modules/           # Project dependencies (summarized)
+├── src/                    # Application source code
+│   ├── app/
+│   │   ├── (api)/              # API routes (not part of URL path)
+│   │   │   ├── auth/
+│   │   │   │   └── [...nextauth]/
+│   │   │   │       └── route.ts
+│   │   │   └── trpc/
+│   │   │       └── [trpc]/
+│   │   │           └── route.ts
+│   │   ├── (auth)/             # Authentication-related pages (e.g., login, register)
+│   │   ├── (main)/             # Main application layout for authenticated users
+│   │   │   ├── chatbots/
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── [botId]/
+│   │   │   │       └── settings/
+│   │   │   │           └── page.tsx
+│   │   │   ├── dashboard/
+│   │   │   │   └── page.tsx
+│   │   │   ├── data-sources/
+│   │   │   │   └── page.tsx
+│   │   │   ├── layout.tsx
+│   │   │   └── settings/
+│   │   │       └── page.tsx
+│   │   ├── globals.css
+│   │   ├── layout.tsx        # Root layout
+│   │   ├── login/
+│   │   │   ├── actions.ts
+│   │   │   ├── page.tsx
+│   │   │   └── schemas.ts
+│   │   ├── page.tsx          # Landing/Home page
+│   │   └── register/
+│   │       ├── actions.ts
+│   │       ├── page.tsx
+│   │       └── schemas.ts
+│   ├── components/
+│   │   ├── auth/
+│   │   │   ├── auth-provider.tsx
+│   │   │   └── SignOutButton.tsx
+│   │   ├── bots/
+│   │   │   ├── BotList.tsx
+│   │   │   ├── CreateBotDialog.tsx
+│   │   │   ├── GeneralSettingsForm.tsx
+│   │   │   └── KnowledgeBaseForm.tsx
+│   │   ├── layout/
+│   │   │   └── Sidebar.tsx
+│   │   ├── settings/
+│   │   │   └── ProfileForm.tsx
+│   │   ├── shared/
+│   │   └── ui/               # Shadcn UI components
+│   │       ├── alert.tsx
+│   │       ├── badge.tsx
+│   │       ├── button.tsx
+│   │       ├── card.tsx
+│   │       ├── dialog.tsx
+│   │       ├── dropdown-menu.tsx
+│   │       ├── form.tsx
+│   │       ├── input.tsx
+│   │       ├── label.tsx
+│   │       ├── table.tsx
+│   │       ├── tabs.tsx
+│   │       ├── textarea.tsx
+│   │       ├── toast.tsx
+│   │       └── toaster.tsx
+│   ├── hooks/
+│   │   └── use-toast.ts
+│   ├── lib/
+│   │   ├── actions.ts
+│   │   ├── db/
+│   │   │   ├── index.ts
+│   │   │   ├── migrations/
+│   │   │   │   ├── 0000_dark_the_initiative.sql
+│   │   │   │   ├── 0001_far_marvel_apes.sql
+│   │   │   │   ├── 0002_natural_phalanx.sql
+│   │   │   │   └── meta/
+│   │   │   │       ├── 0000_snapshot.json
+│   │   │   │       ├── 0001_snapshot.json
+│   │   │   │       ├── 0002_snapshot.json
+│   │   │   │       └── _journal.json
+│   │   │   └── schema.ts     # Drizzle ORM schema definition
+│   │   ├── security/
+│   │   │   └── crypto.ts
+│   │   ├── trpc/
+│   │   │   ├── client.ts
+│   │   │   └── provider.tsx
+│   │   ├── utils.ts
+│   │   └── validators/
+│   ├── middleware.ts         # Next.js middleware for auth redirects, etc.
+│   ├── server/
+│   │   ├── actions/
+│   │   │   └── auth.ts
+│   │   ├── api/
+│   │   │   ├── routers/        # tRPC routers
+│   │   │   │   ├── auth.ts
+│   │   │   │   ├── bot.ts
+│   │   │   │   ├── tenant.ts
+│   │   │   │   ├── user.ts
+│   │   │   │   └── _app.ts   # Main tRPC app router
+│   │   │   └── trpc.ts         # tRPC initialization
+│   │   └── auth.ts           # NextAuth configuration
+│   └── types/
+│       └── index.ts          # Core TypeScript types and interfaces
+├── .env
+├── components.json
+├── docker-compose.yml
+├── drizzle.config.ts
+├── next-env.d.ts
+├── next.config.mjs
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── tailwind.config.js
+└── tsconfig.json
