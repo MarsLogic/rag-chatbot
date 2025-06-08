@@ -7,6 +7,7 @@ import { useDropzone } from "react-dropzone";
 import { Loader2, UploadCloud } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/trpc/client";
 import { inferRouterOutputs } from "@trpc/server";
 import { AppRouter } from "@/server/api/routers/_app";
 
@@ -21,9 +22,24 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
 
-  // We no longer need the tRPC mutations for upload
-  // const getUploadUrlMutation = api.bot.getUploadPresignedUrl.useMutation();
-  // const confirmUploadMutation = api.bot.confirmUpload.useMutation();
+  // New tRPC mutation to create the document record AFTER upload
+  const createDocumentMutation = api.bot.createDocument.useMutation({
+    onSuccess: (newDocument) => {
+      toast({
+        title: "Upload Successful",
+        description: `"${newDocument.fileName}" has been added to the knowledge base.`,
+      });
+      // We can add logic to refresh the file list here later
+    },
+    onError: (error) => {
+      console.error("Error creating document record:", error);
+      toast({
+        title: "Database Error",
+        description: "Could not save the document record. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const onDrop = async (acceptedFiles: File[]) => {
     if (!acceptedFiles || acceptedFiles.length === 0 || !bot) return;
@@ -32,36 +48,34 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
     setIsUploading(true);
     
     try {
-      // The new endpoint needs the botId and filename as query parameters
-      const uploadUrl = `/api/upload?filename=${encodeURIComponent(file.name)}&botId=${bot.id}`;
-
-      // Upload the file directly to our new API route.
-      // The route will handle streaming the file to Vercel Blob.
-      const response = await fetch(uploadUrl, {
+      // Step 1: Upload the file to Vercel Blob via our dedicated API route
+      // We no longer need to pass the botId here for security reasons.
+      const uploadResponse = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}`, {
         method: 'POST',
         body: file,
-        headers: { 'Content-Type': file.type },
       });
 
-      if (!response.ok) {
-        throw new Error('Upload failed.');
+      if (!uploadResponse.ok) {
+        throw new Error('Upload to Vercel Blob failed.');
       }
-      
-      // The API route now returns the newly created document record on success
-      const newDocument = await response.json();
 
-      toast({
-        title: "Upload Successful",
-        description: `"${newDocument.fileName}" has been added to the knowledge base.`,
+      // The API route now returns the Vercel Blob result
+      const blob = await uploadResponse.json();
+
+      // Step 2: Call the tRPC mutation to save the document metadata to our database
+      await createDocumentMutation.mutateAsync({
+        botId: bot.id,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        storagePath: blob.url, // The URL returned by our upload API
       });
-      
-      // Here you can add logic to refresh the list of documents
-      // e.g., using a router.refresh() or a query invalidation if using tanstack-query
 
     } catch (error) {
+      console.error("Upload error:", error);
       toast({
         title: "Upload Failed",
-        description: "Could not upload the file. Please check the file type and size, and try again.",
+        description: "Could not upload the file. Please check your connection and try again.",
         variant: "destructive",
       });
     } finally {
@@ -72,7 +86,6 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     multiple: false,
-    // Let's expand the accepted file types according to our PRD
     accept: { 
       'application/pdf': ['.pdf'], 
       'text/plain': ['.txt'],

@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { bots } from "@/lib/db/schema";
+import { bots, botDocuments } from "@/lib/db/schema"; // Ensure botDocuments is imported
 import { nanoid } from "nanoid";
 import { eq, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -23,7 +23,6 @@ export const botRouter = createTRPCRouter({
       if (!bot || bot.userId !== ctx.session.user.id) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
-
       return bot;
     }),
 
@@ -52,6 +51,39 @@ export const botRouter = createTRPCRouter({
       return { id: newBotId };
     }),
 
-  // NOTE: The file upload procedures are correctly handled in /api/upload/route.ts
-  // and are not needed here.
+  /**
+   * Creates a document record in the database after a file has been
+   * successfully uploaded to the blob store.
+   */
+  createDocument: protectedProcedure
+    .input(
+      z.object({
+        botId: z.string(),
+        fileName: z.string(),
+        fileType: z.string(),
+        fileSize: z.number(),
+        storagePath: z.string().url(), // The final URL from Vercel Blob
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Security check: User must own the bot
+      const [bot] = await ctx.db.select().from(bots).where(eq(bots.id, input.botId));
+      if (!bot || bot.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: 'FORBIDDEN' });
+      }
+
+      const [newDocument] = await ctx.db
+        .insert(botDocuments)
+        .values({
+          botId: input.botId,
+          fileName: input.fileName,
+          fileType: input.fileType,
+          fileSize: input.fileSize,
+          storagePath: input.storagePath,
+          status: 'UPLOADED',
+        })
+        .returning();
+
+      return newDocument;
+    }),
 });
