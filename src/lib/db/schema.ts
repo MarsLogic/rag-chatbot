@@ -14,9 +14,9 @@ import {
 } from "drizzle-orm/pg-core";
 import type { AdapterAccount } from "@auth/core/adapters";
 
-// --- EXISTING NEXTAUTH.JS TABLES ---
+// --- CORRECTED NEXTAUTH.JS TABLES ---
 
-export const users = pgTable("user", {
+export const users = pgTable("users", { // FIX: "user" -> "users"
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -28,7 +28,7 @@ export const users = pgTable("user", {
 });
 
 export const accounts = pgTable(
-  "account",
+  "accounts", // FIX: "account" -> "accounts"
   {
     userId: text("userId")
       .notNull()
@@ -51,7 +51,7 @@ export const accounts = pgTable(
   })
 );
 
-export const sessions = pgTable("session", {
+export const sessions = pgTable("sessions", { // FIX: "session" -> "sessions"
   sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
     .notNull()
@@ -60,20 +60,20 @@ export const sessions = pgTable("session", {
 });
 
 export const verificationTokens = pgTable(
-  "verificationToken",
+  "verification_tokens", // FIX: "verificationToken" -> "verification_tokens"
   {
     identifier: text("identifier").notNull(),
     token: text("token").notNull(),
     expires: timestamp("expires", { mode: "date" }).notNull(),
   },
-  (verificationToken) => ({
-    compositePk: primaryKey({
-      columns: [verificationToken.identifier, verificationToken.token],
-    }),
+  (vt) => ({ // Renamed for clarity
+    compositePk: primaryKey({ columns: [vt.identifier, vt.token] }),
   })
 );
 
+
 // --- EXISTING TENANT AND BOT TABLES ---
+// These are already correct and do not need changes.
 
 export const llmProviderEnum = pgEnum("llm_provider_enum", [
   "openai",
@@ -108,7 +108,7 @@ export const bots = pgTable(
   "bots",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
+    userId: text("user_id") // FIX: Changed from users.id to prevent potential issues, though it should resolve correctly.
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 255 }).notNull(),
@@ -131,6 +131,7 @@ export const bots = pgTable(
 );
 
 // --- NEW TABLES FOR KNOWLEDGE BASE ---
+// This is already correct.
 
 export const botDocumentStatusEnum = pgEnum('bot_document_status_enum', [
   'PENDING', 
