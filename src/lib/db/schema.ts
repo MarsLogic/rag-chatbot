@@ -66,21 +66,19 @@ export const verificationTokens = pgTable(
     token: text("token").notNull(),
     expires: timestamp("expires", { mode: "date" }).notNull(),
   },
-  (vt) => ({ // Renamed for clarity
+  (vt) => ({
     compositePk: primaryKey({ columns: [vt.identifier, vt.token] }),
   })
 );
 
 
-// --- EXISTING TENANT AND BOT TABLES ---
-// These are already correct and do not need changes.
-
+// --- YOUR OTHER TABLES (Leave them as they are) ---
+// ... (the rest of your schema for bots, etc.)
 export const llmProviderEnum = pgEnum("llm_provider_enum", [
   "openai",
   "anthropic",
   "grok",
 ]);
-
 export const tenantSettings = pgTable("tenant_settings", {
   userId: text("user_id")
     .primaryKey()
@@ -95,7 +93,6 @@ export const tenantSettings = pgTable("tenant_settings", {
     .defaultNow()
     .notNull(),
 });
-
 export const botStatusEnum = pgEnum('bot_status_enum', [
   'CREATING', 
   'PROCESSING_DOCUMENTS', 
@@ -103,12 +100,11 @@ export const botStatusEnum = pgEnum('bot_status_enum', [
   'ERROR', 
   'UPDATING'
 ]);
-
 export const bots = pgTable(
   "bots",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id") // FIX: Changed from users.id to prevent potential issues, though it should resolve correctly.
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 255 }).notNull(),
@@ -129,10 +125,6 @@ export const bots = pgTable(
     publicUrlIdIdx: uniqueIndex("idx_bots_public_url_id").on(table.publicUrlId),
   })
 );
-
-// --- NEW TABLES FOR KNOWLEDGE BASE ---
-// This is already correct.
-
 export const botDocumentStatusEnum = pgEnum('bot_document_status_enum', [
   'PENDING', 
   'UPLOADED',
@@ -140,7 +132,6 @@ export const botDocumentStatusEnum = pgEnum('bot_document_status_enum', [
   'PROCESSED', 
   'FAILED'
 ]);
-
 export const botDocuments = pgTable("bot_documents", {
   id: uuid("id").primaryKey().defaultRandom(),
   botId: uuid("id").notNull().references(() => bots.id, { onDelete: "cascade" }),
