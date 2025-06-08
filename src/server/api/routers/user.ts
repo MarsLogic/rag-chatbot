@@ -1,7 +1,6 @@
 // src/server/api/routers/user.ts
 
 import { z } from "zod";
-// This is the corrected import path
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc"; 
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -12,7 +11,8 @@ export const userRouter = createTRPCRouter({
    */
   me: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.db.query.users.findFirst({
-      where: eq(users.id, ctx.session.user.id),
+      // FIX 1: Add non-null assertion
+      where: eq(users.id, ctx.session.user.id!),
     });
     return user;
   }),
@@ -32,7 +32,8 @@ export const userRouter = createTRPCRouter({
         .set({
           name: input.name,
         })
-        .where(eq(users.id, ctx.session.user.id));
+        // FIX 2: Add non-null assertion
+        .where(eq(users.id, ctx.session.user.id!));
 
       return { success: true };
     }),
