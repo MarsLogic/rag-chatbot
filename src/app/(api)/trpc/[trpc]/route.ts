@@ -1,5 +1,8 @@
 // src/app/(api)/trpc/[trpc]/route.ts
 
+// This line is the fix. It forces the handler to run in the Node.js runtime.
+export const runtime = "nodejs";
+
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { type NextRequest } from "next/server";
 
