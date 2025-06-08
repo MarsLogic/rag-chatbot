@@ -1,1 +1,4 @@
-drizzle.config.ts
+# .vercelignore
+
+drizzle.config.local.ts
+.env
