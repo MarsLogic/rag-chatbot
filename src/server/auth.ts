@@ -38,24 +38,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   session: { strategy: "jwt" },
-
-  // --- THIS IS THE FIX ---
-  // We add this callbacks block to put the user's ID into the session token.
+  
+  // This callbacks block is correct and necessary.
   callbacks: {
-    // The 'jwt' callback is called when a JSON Web Token is created.
-    // We can add custom properties to the token here.
     jwt({ token, user }) {
       if (user) {
-        // When the user first signs in, add their ID to the token.
         token.id = user.id;
       }
       return token;
     },
-    // The 'session' callback is called when a session is checked.
-    // We can add the custom properties from the token to the session object.
     session({ session, token }) {
       if (session.user) {
-        // Add the ID from the token to the session.user object.
         session.user.id = token.id as string;
       }
       return session;

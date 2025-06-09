@@ -15,9 +15,11 @@ export function TrpcProvider({ children }: { children: React.ReactNode }) {
     api.createClient({
       links: [
         httpBatchLink({
+          // The URL is now correct because you renamed the (api) folder
           url: "/api/trpc",
-          // The transformer property belongs INSIDE the link configuration
-          transformer: superjson, 
+          // --- THIS IS THE FIX ---
+          // The transformer belongs INSIDE the link for your version of tRPC.
+          transformer: superjson,
         }),
       ],
     })

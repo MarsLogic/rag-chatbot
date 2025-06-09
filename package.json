@@ -7,10 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "db:push": "dotenv -e .env -- drizzle-kit push --config=drizzle.config.local.ts",
+    "db:studio": "drizzle-kit studio --config=drizzle.config.local.ts",
     "db:generate": "drizzle-kit generate --config=drizzle.config.local.ts",
-    "db:push": "drizzle-kit push --config=drizzle.config.local.ts",
-    "db:migrate": "drizzle-kit migrate --config=drizzle.config.local.ts",
-    "db:studio": "drizzle-kit studio --config=drizzle.config.local.ts"
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.local.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^0.8.0",
@@ -26,7 +26,7 @@
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "drizzle-orm": "0.30.10",
+    "drizzle-orm": "^0.44.2",
     "lucide-react": "^0.379.0",
     "nanoid": "^5.1.5",
     "next": "14.2.3",
@@ -47,6 +47,7 @@
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.21",
     "dotenv": "^16.4.5",
+    "dotenv-cli": "^8.0.0",
     "drizzle-kit": "^0.31.1",
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
