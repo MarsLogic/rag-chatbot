@@ -27,6 +27,6 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx"
-  ],
+, "src/env.mjs"  ],
   "exclude": ["node_modules", "drizzle.config.local.ts"]
 }

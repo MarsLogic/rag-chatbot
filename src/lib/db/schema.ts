@@ -16,7 +16,7 @@ import type { AdapterAccount } from "@auth/core/adapters";
 
 // --- CORRECTED NEXTAUTH.JS TABLES ---
 
-export const users = pgTable("users", { // FIX: "user" -> "users"
+export const users = pgTable("users", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -28,7 +28,7 @@ export const users = pgTable("users", { // FIX: "user" -> "users"
 });
 
 export const accounts = pgTable(
-  "accounts", // FIX: "account" -> "accounts"
+  "accounts",
   {
     userId: text("userId")
       .notNull()
@@ -51,7 +51,7 @@ export const accounts = pgTable(
   })
 );
 
-export const sessions = pgTable("sessions", { // FIX: "session" -> "sessions"
+export const sessions = pgTable("sessions", {
   sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
     .notNull()
@@ -60,7 +60,7 @@ export const sessions = pgTable("sessions", { // FIX: "session" -> "sessions"
 });
 
 export const verificationTokens = pgTable(
-  "verification_tokens", // FIX: "verificationToken" -> "verification_tokens"
+  "verification_tokens",
   {
     identifier: text("identifier").notNull(),
     token: text("token").notNull(),
@@ -72,8 +72,8 @@ export const verificationTokens = pgTable(
 );
 
 
-// --- YOUR OTHER TABLES (Leave them as they are) ---
-// ... (the rest of your schema for bots, etc.)
+// --- YOUR OTHER TABLES ---
+
 export const llmProviderEnum = pgEnum("llm_provider_enum", [
   "openai",
   "anthropic",
@@ -93,6 +93,7 @@ export const tenantSettings = pgTable("tenant_settings", {
     .defaultNow()
     .notNull(),
 });
+
 export const botStatusEnum = pgEnum('bot_status_enum', [
   'CREATING', 
   'PROCESSING_DOCUMENTS', 
@@ -100,6 +101,7 @@ export const botStatusEnum = pgEnum('bot_status_enum', [
   'ERROR', 
   'UPDATING'
 ]);
+
 export const bots = pgTable(
   "bots",
   {
@@ -125,6 +127,7 @@ export const bots = pgTable(
     publicUrlIdIdx: uniqueIndex("idx_bots_public_url_id").on(table.publicUrlId),
   })
 );
+
 export const botDocumentStatusEnum = pgEnum('bot_document_status_enum', [
   'PENDING', 
   'UPLOADED',
@@ -132,9 +135,11 @@ export const botDocumentStatusEnum = pgEnum('bot_document_status_enum', [
   'PROCESSED', 
   'FAILED'
 ]);
+
 export const botDocuments = pgTable("bot_documents", {
   id: uuid("id").primaryKey().defaultRandom(),
-  botId: uuid("id").notNull().references(() => bots.id, { onDelete: "cascade" }),
+  // THE FIX IS HERE: Changed uuid("id") to uuid("bot_id")
+  botId: uuid("bot_id").notNull().references(() => bots.id, { onDelete: "cascade" }),
   
   fileName: varchar("file_name", { length: 255 }).notNull(),
   fileType: varchar("file_type", { length: 100 }),

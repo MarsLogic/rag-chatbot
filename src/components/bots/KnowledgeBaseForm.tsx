@@ -4,32 +4,49 @@
 
 import { useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { Loader2, UploadCloud } from "lucide-react";
+import { Loader2, UploadCloud, FileText, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/trpc/client";
 import { inferRouterOutputs } from "@trpc/server";
 import { AppRouter } from "@/server/api/routers/_app";
+import type { PutBlobResult } from '@vercel/blob';
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
-// Use the recommended `inferRouterOutputs` to get the correct type for our bot object
 type Bot = inferRouterOutputs<AppRouter>["bot"]["byId"];
 
+// THE FIX IS HERE: Re-adding the missing interface definition
 interface KnowledgeBaseFormProps {
   bot: Bot;
+}
+
+// Function to format file size for display
+function formatBytes(bytes: number | null, decimals = 2) {
+  if (bytes === null || bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
 export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const utils = api.useUtils();
 
-  // New tRPC mutation to create the document record AFTER upload
+  const { data: documents, isLoading: isLoadingDocuments } = api.bot.listDocuments.useQuery({ botId: bot.id });
+
   const createDocumentMutation = api.bot.createDocument.useMutation({
     onSuccess: (newDocument) => {
       toast({
         title: "Upload Successful",
         description: `"${newDocument.fileName}" has been added to the knowledge base.`,
       });
-      // We can add logic to refresh the file list here later
+      utils.bot.listDocuments.invalidate({ botId: bot.id });
     },
     onError: (error) => {
       console.error("Error creating document record:", error);
@@ -41,6 +58,31 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
     },
   });
 
+  const deleteDocumentMutation = api.bot.deleteDocument.useMutation({
+    onSuccess: () => {
+        toast({ title: "Document Deleted", description: "The source has been removed." });
+        utils.bot.listDocuments.invalidate({ botId: bot.id });
+    },
+    onError: (error) => {
+        console.error("Error deleting document:", error);
+        toast({
+            title: "Delete Failed",
+            description: "Could not delete the document. Please try again.",
+            variant: "destructive",
+        });
+    },
+    onSettled: () => {
+        setDeletingId(null);
+    }
+  });
+
+  const handleDelete = (documentId: string) => {
+    if (window.confirm("Are you sure you want to permanently delete this document?")) {
+      setDeletingId(documentId);
+      deleteDocumentMutation.mutate({ documentId });
+    }
+  };
+
   const onDrop = async (acceptedFiles: File[]) => {
     if (!acceptedFiles || acceptedFiles.length === 0 || !bot) return;
     const file = acceptedFiles[0];
@@ -48,8 +90,6 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
     setIsUploading(true);
     
     try {
-      // Step 1: Upload the file to Vercel Blob via our dedicated API route
-      // We no longer need to pass the botId here for security reasons.
       const uploadResponse = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}`, {
         method: 'POST',
         body: file,
@@ -59,16 +99,14 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
         throw new Error('Upload to Vercel Blob failed.');
       }
 
-      // The API route now returns the Vercel Blob result
-      const blob = await uploadResponse.json();
+      const blob = (await uploadResponse.json()) as PutBlobResult;
 
-      // Step 2: Call the tRPC mutation to save the document metadata to our database
       await createDocumentMutation.mutateAsync({
         botId: bot.id,
         fileName: file.name,
-        fileSize: file.size,
         fileType: file.type,
-        storagePath: blob.url, // The URL returned by our upload API
+        fileSize: file.size,
+        storagePath: blob.url,
       });
 
     } catch (error) {
@@ -101,7 +139,7 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
       <CardHeader>
         <CardTitle>Knowledge Base</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         <div
           {...getRootProps()}
           className={`flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed
@@ -123,7 +161,71 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
             </div>
           )}
         </div>
-        {/* We will list the uploaded files here in a later step */}
+
+        <div>
+          <h3 className="mb-4 text-lg font-medium">Uploaded Sources</h3>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead>File Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead>Uploaded At</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoadingDocuments ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center">
+                      <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" />
+                    </TableCell>
+                  </TableRow>
+                ) : documents && documents.length > 0 ? (
+                  documents.map((doc) => (
+                    <TableRow key={doc.id}>
+                      <TableCell>
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                      </TableCell>
+                      <TableCell className="font-medium">{doc.fileName}</TableCell>
+                      <TableCell className="text-muted-foreground">{doc.fileType}</TableCell>
+                      <TableCell>
+                        <Badge variant={doc.status === 'PROCESSED' ? 'default' : 'secondary'}>
+                          {doc.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatBytes(doc.fileSize)}</TableCell>
+                      <TableCell>{new Date(doc.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDelete(doc.id)}
+                          disabled={deletingId === doc.id}
+                        >
+                          {deletingId === doc.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      No documents uploaded yet.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

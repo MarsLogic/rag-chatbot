@@ -4,8 +4,9 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { bots, botDocuments } from "@/lib/db/schema";
 import { nanoid } from "nanoid";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { del } from '@vercel/blob';
 
 export const botRouter = createTRPCRouter({
   byId: protectedProcedure
@@ -28,16 +29,14 @@ export const botRouter = createTRPCRouter({
   create: protectedProcedure
     .input(z.object({ name: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
-      // Create the bot record, letting the DB generate the ID.
-      // We MUST provide the required 'publicUrlId'.
       const [newBot] = await ctx.db
         .insert(bots)
         .values({
           name: input.name,
           userId: ctx.session.user.id!,
-          publicUrlId: nanoid(10), // Generate a 10-char random public ID
+          publicUrlId: nanoid(10),
         })
-        .returning(); // Ask the DB to return the full new record, including the generated ID
+        .returning();
 
       if (!newBot) {
         throw new TRPCError({
@@ -71,8 +70,27 @@ export const botRouter = createTRPCRouter({
         })
         .where(eq(bots.id, input.id))
         .returning();
-      
+
       return updatedBot;
+    }),
+  
+  listDocuments: protectedProcedure
+    .input(z.object({ botId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const [bot] = await ctx.db
+        .select({ id: bots.id })
+        .from(bots)
+        .where(
+          and(eq(bots.id, input.botId), eq(bots.userId, ctx.session.user.id!))
+        );
+      if (!bot) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      
+      return ctx.db.query.botDocuments.findMany({
+        where: eq(botDocuments.botId, input.botId),
+        orderBy: [desc(botDocuments.createdAt)],
+      });
     }),
 
   createDocument: protectedProcedure
@@ -86,8 +104,13 @@ export const botRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [bot] = await ctx.db.select().from(bots).where(eq(bots.id, input.botId));
-      if (!bot || bot.userId !== ctx.session.user.id!) {
+      const [bot] = await ctx.db
+        .select({ id: bots.id })
+        .from(bots)
+        .where(
+          and(eq(bots.id, input.botId), eq(bots.userId, ctx.session.user.id!))
+        );
+      if (!bot) {
         throw new TRPCError({ code: 'FORBIDDEN' });
       }
 
@@ -104,5 +127,38 @@ export const botRouter = createTRPCRouter({
         .returning();
 
       return newDocument;
+    }),
+  
+  // NEW PROCEDURE TO DELETE A DOCUMENT
+  deleteDocument: protectedProcedure
+    .input(z.object({ documentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // 1. Find the document to ensure it exists and the user has permission
+      const [doc] = await ctx.db
+        .select({ 
+            id: botDocuments.id, 
+            storagePath: botDocuments.storagePath,
+            userId: bots.userId 
+        })
+        .from(botDocuments)
+        .leftJoin(bots, eq(botDocuments.botId, bots.id))
+        .where(eq(botDocuments.id, input.documentId));
+
+      if (!doc) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      if (doc.userId !== ctx.session.user.id) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      // 2. Delete the file from Vercel Blob storage
+      if (doc.storagePath) {
+        await del(doc.storagePath);
+      }
+
+      // 3. Delete the document record from the database
+      await ctx.db.delete(botDocuments).where(eq(botDocuments.id, input.documentId));
+
+      return { success: true };
     }),
 });
