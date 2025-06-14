@@ -20,7 +20,8 @@ export const helloWorld = inngest.createFunction(
   { event: 'test/hello.world' },
   async ({ event, step }) => {
     console.log('[INNGESET] "Hello, world!" function was triggered!');
-    await step.sleep('1s');
+    // THE FIX: Added a unique ID 'wait-a-moment' as the first argument
+    await step.sleep('wait-a-moment', '1s');
     console.log(`[INNGESET] Event received:`, event.name);
     return { event, body: 'Hello, World!' };
   }
@@ -72,9 +73,6 @@ export const processDocument = inngest.createFunction(
       await db.update(botDocuments).set({ status: 'PROCESSING' }).where(eq(botDocuments.id, documentId));
     });
 
-    // --- THE FINAL FIX ---
-    // Instead of getting a Blob, we get the ArrayBuffer directly.
-    // This is more efficient and avoids the TypeScript type-checking issue on Vercel.
     const fileBuffer = await step.run('download-file-buffer', async () => {
       const response = await fetch(docInfo.storagePath!);
       if (!response.ok) throw new Error(`Failed to download file. Status: ${response.status}`);
@@ -88,18 +86,15 @@ export const processDocument = inngest.createFunction(
 
       switch (fileType) {
         case 'application/pdf':
-          // pdf-parse needs a Buffer, which we can create directly from the ArrayBuffer.
           const pdfData = await pdf(Buffer.from(fileBuffer));
           rawText = pdfData.text;
           break;
         case 'text/plain':
         case 'text/csv':
         case 'application/json':
-          // Text-based files need to be decoded from the buffer.
           rawText = new TextDecoder().decode(fileBuffer);
           break;
         case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-          // mammoth can take the ArrayBuffer directly.
           const docxResult = await mammoth.extractRawText({ arrayBuffer: fileBuffer });
           rawText = docxResult.value;
           break;
@@ -108,7 +103,6 @@ export const processDocument = inngest.createFunction(
       }
       return [new Document({ pageContent: rawText })];
     });
-    // --- End of the new logic ---
 
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: docInfo.ragConfig.chunkSize,
