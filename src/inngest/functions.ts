@@ -8,10 +8,6 @@ import { Document } from '@langchain/core/documents';
 import { OllamaEmbeddings } from '@langchain/community/embeddings/ollama';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 
-// --- CORE COMPONENT SWAP ---
-// We are replacing 'pdf-parse' with Mozilla's 'pdfjs-dist'.
-// This library is environment-agnostic and works with standard ArrayBuffers,
-// which will solve the Vercel build issue.
 import * as pdfjs from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -37,10 +33,20 @@ const DOCUMENT_UPLOADED_EVENT = 'app/document.uploaded';
 
 export const processDocument = inngest.createFunction(
   {
-    id: 'process-document-function-v3', // Version bump to reflect the core change
+    id: 'process-document-function-v3',
     concurrency: { limit: 5 },
     onFailure: async ({ event, error }) => {
-      const { documentId } = event.data;
+      // --- THE FINAL, DEFENSIVE FIX ---
+      // We are adding "guard clauses" to safely access the data.
+      // This is a robust pattern that satisfies the strict Vercel compiler.
+      const eventData = event.data as any;
+      if (!eventData || typeof eventData.documentId !== 'string') {
+        console.error('[INNGESET] Failure event received without a valid documentId.', event);
+        return; // Exit safely if the data is not what we expect.
+      }
+      const { documentId } = eventData;
+      // --- END OF FIX ---
+
       console.error(`[INNGESET] Failed to process document ${documentId}`, error);
       await db
         .update(botDocuments)
@@ -87,7 +93,6 @@ export const processDocument = inngest.createFunction(
 
       switch (fileType) {
         case 'application/pdf':
-          // Using pdfjs-dist: it takes the ArrayBuffer directly.
           const pdfDoc = await pdfjs.getDocument(fileBuffer).promise;
           const numPages = pdfDoc.numPages;
           let pdfText = '';
