@@ -39,38 +39,32 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const utils = api.useUtils();
 
-  // --- THE FINAL FIX: Environment-Specific Logic ---
-  // We combine smart polling for production and real-time events for development.
   const { data: documents, isLoading: isLoadingDocuments } = api.bot.listDocuments.useQuery(
     { botId: bot.id },
     {
-      // Smart polling for Production: This will stop the spinner on Vercel.
       refetchInterval: (query) => {
-        const data = query.state.data;
-        const isProcessing = data?.some(doc => doc.status === 'PROCESSING' || doc.status === 'UPLOADED');
+        const currentDocs = query.state.data as Document[] | undefined;
+        const isProcessing = currentDocs?.some(
+          (doc) => doc.status === 'PROCESSING' || doc.status === 'UPLOADED'
+        );
         return isProcessing ? 3000 : false;
       },
+      refetchOnWindowFocus: true,
     }
   );
 
-  // Real-time events for Local Development: This gives us instant UI updates locally.
-  // We wrap this in a check to ensure it ONLY runs in development.
   if (process.env.NODE_ENV === 'development') {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    useInngestEventListener(
-      'app/document.processed',
-      (event) => {
-        console.log('Received document processed event:', event);
+    useInngestEventListener('app/document.processed', () => {
         utils.bot.listDocuments.invalidate({ botId: bot.id });
-        toast({
-          title: 'Processing Complete',
-          description: `A document has been successfully processed.`,
-        });
+      }
+    );
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useInngestEventListener('app/document.failed', () => {
+        utils.bot.listDocuments.invalidate({ botId: bot.id });
       }
     );
   }
-  // --- END OF FINAL FIX ---
-
 
   const createDocumentMutation = api.bot.createDocument.useMutation({
     onSuccess: (newDocument) => {
@@ -124,30 +118,34 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
     
     setIsUploading(true);
 
-    const uploadResponse = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}`, {
-      method: 'POST',
-      body: file,
-    });
+    try {
+      const uploadResponse = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}`, {
+        method: 'POST',
+        body: file,
+      });
 
-    if (!uploadResponse.ok) {
+      if (!uploadResponse.ok) {
+          const errorBody = await uploadResponse.text();
+          throw new Error(errorBody || "Could not reach the upload server.");
+      }
+      
+      const blob = (await uploadResponse.json()) as PutBlobResult;
+
+      createDocumentMutation.mutate({
+          botId: bot.id,
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          storagePath: blob.url,
+      });
+    } catch (error) {
         toast({
             title: "Upload Failed",
-            description: "Could not reach the upload server. Please check your connection.",
+            description: error instanceof Error ? error.message : "An unknown error occurred.",
             variant: "destructive",
         });
         setIsUploading(false);
-        return;
     }
-    
-    const blob = (await uploadResponse.json()) as PutBlobResult;
-
-    createDocumentMutation.mutate({
-        botId: bot.id,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        storagePath: blob.url,
-    });
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -163,17 +161,15 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
     },
   });
 
-  const getBadgeVariant = (status: string): "default" | "secondary" | "destructive" => {
+  const getBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
         case 'PROCESSED': return 'default';
         case 'FAILED': return 'destructive';
+        case 'PROCESSING': return 'secondary';
+        case 'UPLOADED': return 'outline';
         default: return 'secondary';
     }
   }
-
-  const isAnyDocumentProcessing = documents?.some(
-    (doc) => doc.status === 'PROCESSING' || doc.status === 'UPLOADED'
-  );
 
   return (
     <Card>
@@ -212,25 +208,21 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
                   <TableHead className="w-[50px]"></TableHead>
                   <TableHead>File Name</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>
-                    <div className="flex items-center gap-2">
-                      Status
-                      {isAnyDocumentProcessing && <Loader2 className="h-4 w-4 animate-spin" />}
-                    </div>
-                  </TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Size</TableHead>
                   <TableHead>Uploaded At</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoadingDocuments && !documents ? (
+                {/* SYNTAX FIX: The ternary structure is simplified to remove extra parentheses */}
+                {(isLoadingDocuments && !documents) ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center">
                       <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ) : documents && documents.length > 0 ? (
+                ) : (documents && documents.length > 0) ? (
                   documents.map((doc: Document) => (
                     <TableRow key={doc.id}>
                       <TableCell>
@@ -239,9 +231,14 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
                       <TableCell className="font-medium">{doc.fileName}</TableCell>
                       <TableCell className="text-muted-foreground">{doc.fileType}</TableCell>
                       <TableCell>
-                        <Badge variant={getBadgeVariant(doc.status)}>
-                          {doc.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={getBadgeVariant(doc.status)}>
+                            {doc.status}
+                          </Badge>
+                          {(doc.status === 'PROCESSING' || doc.status === 'UPLOADED') && (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>{formatBytes(doc.fileSize)}</TableCell>
                       <TableCell>{new Date(doc.createdAt).toLocaleDateString()}</TableCell>
