@@ -7,6 +7,7 @@ import { nanoid } from "nanoid";
 import { eq, desc, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { del } from '@vercel/blob';
+import { inngest } from "@/inngest/client"; // <-- IMPORT INNGEST
 
 export const botRouter = createTRPCRouter({
   byId: protectedProcedure
@@ -126,14 +127,21 @@ export const botRouter = createTRPCRouter({
         })
         .returning();
 
+      // --- TRIGGER THE BACKGROUND JOB ---
+      await inngest.send({
+        name: "app/document.uploaded",
+        data: {
+          documentId: newDocument.id,
+        },
+      });
+      // -----------------------------------
+
       return newDocument;
     }),
   
-  // NEW PROCEDURE TO DELETE A DOCUMENT
   deleteDocument: protectedProcedure
     .input(z.object({ documentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // 1. Find the document to ensure it exists and the user has permission
       const [doc] = await ctx.db
         .select({ 
             id: botDocuments.id, 
@@ -151,12 +159,12 @@ export const botRouter = createTRPCRouter({
         throw new TRPCError({ code: "FORBIDDEN" });
       }
 
-      // 2. Delete the file from Vercel Blob storage
       if (doc.storagePath) {
         await del(doc.storagePath);
       }
 
-      // 3. Delete the document record from the database
+      // TODO: In the future, also delete associated chunks from the bot_document_chunks table
+      
       await ctx.db.delete(botDocuments).where(eq(botDocuments.id, input.documentId));
 
       return { success: true };

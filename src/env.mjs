@@ -1,4 +1,4 @@
-// src/env.ts
+// src/env.mjs
 
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -27,6 +27,8 @@ export const env = createEnv({
     ),
     // Add the Vercel Blob Read/Write Token
     BLOB_READ_WRITE_TOKEN: z.string(),
+    // Add the Inngest Event Key
+    INNGEST_EVENT_KEY: z.string(),
   },
 
   /**
@@ -47,6 +49,8 @@ export const env = createEnv({
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
+    // Add the Inngest Event Key here too
+    INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

@@ -11,8 +11,24 @@ import {
   jsonb,
   uuid,
   uniqueIndex,
+  customType, // Import customType
 } from "drizzle-orm/pg-core";
 import type { AdapterAccount } from "@auth/core/adapters";
+
+// --- PG VECTOR SETUP ---
+// This constant MUST match the output dimension of the embedding model you use.
+// For example, OpenAI's text-embedding-3-small is 1536, while many open-source
+// models like nomic-embed-text are 768. We will start with 768.
+const embeddingDimension = 768; 
+const vectorType = customType<{ data: number[]; mode: "vector" }>({
+    dataType() {
+        return `vector(${embeddingDimension})`;
+    },
+    toDriver(value: number[]): string {
+        return `[${value.join(',')}]`;
+    },
+});
+
 
 // --- CORRECTED NEXTAUTH.JS TABLES ---
 
@@ -138,7 +154,6 @@ export const botDocumentStatusEnum = pgEnum('bot_document_status_enum', [
 
 export const botDocuments = pgTable("bot_documents", {
   id: uuid("id").primaryKey().defaultRandom(),
-  // THE FIX IS HERE: Changed uuid("id") to uuid("bot_id")
   botId: uuid("bot_id").notNull().references(() => bots.id, { onDelete: "cascade" }),
   
   fileName: varchar("file_name", { length: 255 }).notNull(),
@@ -150,6 +165,21 @@ export const botDocuments = pgTable("bot_documents", {
   status: botDocumentStatusEnum('status').default('PENDING').notNull(),
   errorMessage: text('error_message'),
   
+  // NEW COLUMNS
+  chunkCount: integer('chunk_count').default(0),
+  processedAt: timestamp('processed_at', { withTimezone: true }),
+
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+// NEW TABLE
+export const botDocumentChunks = pgTable('bot_document_chunks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  botId: uuid('bot_id').notNull().references(() => bots.id, { onDelete: 'cascade' }),
+  documentId: uuid('document_id').notNull().references(() => botDocuments.id, { onDelete: 'cascade' }),
+  chunkText: text('chunk_text').notNull(),
+  embedding: vectorType('embedding').notNull(),
+  chunkIndex: integer('chunk_index').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
