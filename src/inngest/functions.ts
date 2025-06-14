@@ -7,9 +7,13 @@ import { eq } from 'drizzle-orm';
 import { Document } from '@langchain/core/documents';
 import { OllamaEmbeddings } from '@langchain/community/embeddings/ollama';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
-
-import * as pdfjs from 'pdfjs-dist';
 import mammoth from 'mammoth';
+
+// --- THE FINAL, DEFINITIVE FIX for Vercel Build Error ---
+// We explicitly import the 'legacy' build of pdfjs-dist. This version is
+// specifically designed for Node.js environments (like Vercel Serverless Functions)
+// and does not depend on browser-only APIs like DOMMatrix.
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 export const helloWorld = inngest.createFunction(
   { id: 'hello-world-function' },
@@ -25,7 +29,7 @@ const DOCUMENT_UPLOADED_EVENT = 'app/document.uploaded';
 
 export const processDocument = inngest.createFunction(
   {
-    id: 'process-document-function-v4', // Version bump for the new strategy
+    id: 'process-document-function-v4',
     concurrency: { limit: 5 },
     onFailure: async ({ event, error }) => {
       const eventData = event.data as any;
@@ -45,8 +49,7 @@ export const processDocument = inngest.createFunction(
     await step.run('update-status-to-processing', async () => {
       await db.update(botDocuments).set({ status: 'PROCESSING' }).where(eq(botDocuments.id, documentId));
     });
-    
-    // --- THE NEW STRATEGY: Isolate all binary operations into a single step ---
+
     const documents = await step.run('download-and-parse-file', async () => {
       const [docInfo] = await db
         .select({
@@ -76,7 +79,8 @@ export const processDocument = inngest.createFunction(
           for (let i = 1; i <= pdfDoc.numPages; i++) {
             const page = await pdfDoc.getPage(i);
             const textContent = await page.getTextContent();
-            pdfText += textContent.items.map((item: any) => item.str).join(' ');
+            // The item structure is slightly different in the legacy build
+            pdfText += textContent.items.map((item: any) => (item as any).str).join(' ');
           }
           rawText = pdfText;
           break;
@@ -92,11 +96,8 @@ export const processDocument = inngest.createFunction(
         default:
           throw new Error(`Unsupported file type: ${fileType}`);
       }
-      // The output of this step is a simple Document object with a string,
-      // which serializes perfectly.
       return [new Document({ pageContent: rawText })];
     });
-    // --- End of the new strategy ---
 
     const [botInfo] = await db.select({
         botId: bots.id,
