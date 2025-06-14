@@ -8,8 +8,11 @@ import { Document } from '@langchain/core/documents';
 import { OllamaEmbeddings } from '@langchain/community/embeddings/ollama';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 
-// Direct parsing libraries for maximum stability
-import pdf from 'pdf-parse';
+// --- CORE COMPONENT SWAP ---
+// We are replacing 'pdf-parse' with Mozilla's 'pdfjs-dist'.
+// This library is environment-agnostic and works with standard ArrayBuffers,
+// which will solve the Vercel build issue.
+import * as pdfjs from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
 // =================================================================
@@ -34,19 +37,9 @@ const DOCUMENT_UPLOADED_EVENT = 'app/document.uploaded';
 
 export const processDocument = inngest.createFunction(
   {
-    id: 'process-document-function-v2',
+    id: 'process-document-function-v3', // Version bump to reflect the core change
     concurrency: { limit: 5 },
-    // --- THE FINAL FIX ---
-    // We explicitly define the types for the arguments of the onFailure handler.
-    // This tells TypeScript the exact shape of the `event` object,
-    // satisfying the strict compiler on Vercel.
-    onFailure: async ({
-      event,
-      error,
-    }: {
-      event: { data: { documentId: string } };
-      error: Error;
-    }) => {
+    onFailure: async ({ event, error }) => {
       const { documentId } = event.data;
       console.error(`[INNGESET] Failed to process document ${documentId}`, error);
       await db
@@ -94,8 +87,16 @@ export const processDocument = inngest.createFunction(
 
       switch (fileType) {
         case 'application/pdf':
-          const pdfData = await pdf(Buffer.from(fileBuffer));
-          rawText = pdfData.text;
+          // Using pdfjs-dist: it takes the ArrayBuffer directly.
+          const pdfDoc = await pdfjs.getDocument(fileBuffer).promise;
+          const numPages = pdfDoc.numPages;
+          let pdfText = '';
+          for (let i = 1; i <= numPages; i++) {
+            const page = await pdfDoc.getPage(i);
+            const textContent = await page.getTextContent();
+            pdfText += textContent.items.map((item: any) => item.str).join(' ');
+          }
+          rawText = pdfText;
           break;
         case 'text/plain':
         case 'text/csv':
