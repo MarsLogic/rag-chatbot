@@ -4,37 +4,41 @@ import { inngest } from './client';
 import { db } from '@/lib/db';
 import { botDocuments, botDocumentChunks, bots } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-
-// --- CORE LANGCHAIN & PARSER IMPORTS ---
 import { Document } from '@langchain/core/documents';
 import { OllamaEmbeddings } from '@langchain/community/embeddings/ollama';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 
-// --- DIRECT PARSING LIBRARIES (The "No-Loader" Approach) ---
+// Direct parsing libraries for maximum stability
 import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
+
+// =================================================================
+// START: "HELLO WORLD" TEST FUNCTION
+// =================================================================
+export const helloWorld = inngest.createFunction(
+  { id: 'hello-world-function' },
+  { event: 'test/hello.world' },
+  async ({ event, step }) => {
+    console.log('[INNGESET] "Hello, world!" function was triggered!');
+    await step.sleep('1s');
+    console.log(`[INNGESET] Event received:`, event.name);
+    return { event, body: 'Hello, World!' };
+  }
+);
+// =================================================================
+// END: "HELLO WORLD" TEST FUNCTION
+// =================================================================
 
 const DOCUMENT_PROCESSED_EVENT = 'app/document.processed';
 const DOCUMENT_UPLOADED_EVENT = 'app/document.uploaded';
 
 export const processDocument = inngest.createFunction(
   {
-    id: 'process-document-function-v2', // Renamed ID to avoid conflicts
-    concurrency: {
-      limit: 5,
-    },
-    onFailure: async ({
-      event,
-      error,
-    }: {
-      event: { data: { documentId: string } };
-      error: Error;
-    }) => {
+    id: 'process-document-function-v2',
+    concurrency: { limit: 5 },
+    onFailure: async ({ event, error }) => {
       const { documentId } = event.data;
-      console.error(
-        `[INNGESET] Failed to process document ${documentId}`,
-        error
-      );
+      console.error(`[INNGESET] Failed to process document ${documentId}`, error);
       await db
         .update(botDocuments)
         .set({ status: 'FAILED', errorMessage: error.message })
@@ -43,12 +47,10 @@ export const processDocument = inngest.createFunction(
   },
   { event: DOCUMENT_UPLOADED_EVENT },
   async ({ event, step }) => {
-    const { documentId } = event.data as { documentId: string };
-
+    const { documentId } = event.data;
     console.log(`[INNGESET] Received event to process document: ${documentId}`);
 
     const docInfo = await step.run('get-document-info', async () => {
-      // ... (This part remains the same)
       const [doc] = await db
         .select({
           storagePath: botDocuments.storagePath,
@@ -61,38 +63,24 @@ export const processDocument = inngest.createFunction(
         .where(eq(botDocuments.id, documentId));
 
       if (!doc || !doc.storagePath || !doc.fileType || !doc.ragConfig) {
-        throw new Error(
-          `Document info or associated bot config not found for ID: ${documentId}`
-        );
+        throw new Error(`Document info or associated bot config not found for ID: ${documentId}`);
       }
       return doc;
     });
 
     await step.run('update-status-processing', async () => {
-      // ... (This part remains the same)
-      console.log(
-        `[INNGESET] Updating status to PROCESSING for doc: ${documentId}`
-      );
-      await db
-        .update(botDocuments)
-        .set({ status: 'PROCESSING' })
-        .where(eq(botDocuments.id, documentId));
-      return { success: true };
+      await db.update(botDocuments).set({ status: 'PROCESSING' }).where(eq(botDocuments.id, documentId));
     });
 
-    const fileBlob = await step.run('download-file', async () => {
-      // ... (This part remains the same)
-      console.log(`[INNGESET] Downloading file from: ${docInfo.storagePath}`);
+    // --- THE FINAL FIX ---
+    // Instead of getting a Blob, we get the ArrayBuffer directly.
+    // This is more efficient and avoids the TypeScript type-checking issue on Vercel.
+    const fileBuffer = await step.run('download-file-buffer', async () => {
       const response = await fetch(docInfo.storagePath!);
-      if (!response.ok) {
-        throw new Error(`Failed to download file. Status: ${response.status}`);
-      }
-      return response.blob();
+      if (!response.ok) throw new Error(`Failed to download file. Status: ${response.status}`);
+      return response.arrayBuffer();
     });
 
-    // =================================================================
-    // START: REFACTORED DOCUMENT PARSING LOGIC
-    // =================================================================
     const documents = await step.run('parse-document-content', async () => {
       let rawText = '';
       const fileType = docInfo.fileType!;
@@ -100,38 +88,27 @@ export const processDocument = inngest.createFunction(
 
       switch (fileType) {
         case 'application/pdf':
-          // pdf-parse needs a Buffer
-          const pdfBuffer = Buffer.from(await fileBlob.arrayBuffer());
-          const pdfData = await pdf(pdfBuffer);
+          // pdf-parse needs a Buffer, which we can create directly from the ArrayBuffer.
+          const pdfData = await pdf(Buffer.from(fileBuffer));
           rawText = pdfData.text;
           break;
-
         case 'text/plain':
         case 'text/csv':
         case 'application/json':
-          // These types can be read directly as text
-          rawText = await fileBlob.text();
+          // Text-based files need to be decoded from the buffer.
+          rawText = new TextDecoder().decode(fileBuffer);
           break;
-
         case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-          // mammoth needs an ArrayBuffer
-          const docxBuffer = await fileBlob.arrayBuffer();
-          const docxResult = await mammoth.extractRawText({
-            arrayBuffer: docxBuffer,
-          });
+          // mammoth can take the ArrayBuffer directly.
+          const docxResult = await mammoth.extractRawText({ arrayBuffer: fileBuffer });
           rawText = docxResult.value;
           break;
-
         default:
           throw new Error(`Unsupported file type: ${fileType}`);
       }
-      
-      // Manually create the LangChain Document object
       return [new Document({ pageContent: rawText })];
     });
-    // =================================================================
-    // END: REFACTORED DOCUMENT PARSING LOGIC
-    // =================================================================
+    // --- End of the new logic ---
 
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: docInfo.ragConfig.chunkSize,
@@ -145,7 +122,6 @@ export const processDocument = inngest.createFunction(
     });
 
     const embeddings = await step.run('generate-embeddings', async () => {
-      console.log(`[INNGESET] Generating ${chunks.length} embeddings...`);
       return ollamaEmbeddings.embedDocuments(chunks.map((c) => c.pageContent));
     });
 
@@ -158,26 +134,19 @@ export const processDocument = inngest.createFunction(
     }));
 
     await step.run('save-chunks-to-db', async () => {
-      // ... (This part remains the same)
-      console.log(`[INNGESET] Saving ${chunkDataToInsert.length} chunks to DB.`);
       const batchSize = 100;
       for (let i = 0; i < chunkDataToInsert.length; i += batchSize) {
-        const batch = chunkDataToInsert.slice(i, i + batchSize);
-        await db.insert(botDocumentChunks).values(batch);
+        await db.insert(botDocumentChunks).values(chunkDataToInsert.slice(i, i + batchSize));
       }
       return { chunkCount: chunks.length };
     });
 
     await step.run('update-status-processed', async () => {
-      // ... (This part remains the same)
-      await db
-        .update(botDocuments)
-        .set({
-          status: 'PROCESSED',
-          processedAt: new Date(),
-          chunkCount: chunks.length,
-        })
-        .where(eq(botDocuments.id, documentId));
+      await db.update(botDocuments).set({
+        status: 'PROCESSED',
+        processedAt: new Date(),
+        chunkCount: chunks.length,
+      }).where(eq(botDocuments.id, documentId));
     });
 
     await step.sendEvent('send-processed-event', {
@@ -185,9 +154,6 @@ export const processDocument = inngest.createFunction(
       data: { documentId: documentId, status: 'PROCESSED' },
     });
 
-    return {
-      event,
-      body: `Successfully processed document ${documentId} into ${chunks.length} chunks.`,
-    };
+    return { event, body: `Successfully processed document ${documentId} into ${chunks.length} chunks.` };
   }
 );
