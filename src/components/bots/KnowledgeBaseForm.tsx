@@ -14,7 +14,6 @@ import type { PutBlobResult } from '@vercel/blob';
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-// NEW: Import our custom hook
 import { useInngestEventListener } from "@/hooks/use-inngest-event-listener";
 
 // --- TYPE DEFINITIONS ---
@@ -40,26 +39,38 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const utils = api.useUtils();
 
-  // We are removing the refetchInterval logic from this query
-  const { data: documents, isLoading: isLoadingDocuments } = api.bot.listDocuments.useQuery({
-    botId: bot.id,
-  });
-
-  // NEW: Listen for the document processed event from our Inngest function
-  // This replaces the polling logic with a more efficient "push" model.
-  useInngestEventListener(
-    'app/document.processed',
-    (event) => {
-      console.log('Received document processed event:', event);
-      // When the event is received, invalidate the query to refetch the document list.
-      // This will update the status in the UI automatically.
-      utils.bot.listDocuments.invalidate({ botId: bot.id });
-      toast({
-        title: 'Processing Complete',
-        description: `A document has been successfully processed.`,
-      });
+  // --- THE FINAL FIX: Environment-Specific Logic ---
+  // We combine smart polling for production and real-time events for development.
+  const { data: documents, isLoading: isLoadingDocuments } = api.bot.listDocuments.useQuery(
+    { botId: bot.id },
+    {
+      // Smart polling for Production: This will stop the spinner on Vercel.
+      refetchInterval: (query) => {
+        const data = query.state.data;
+        const isProcessing = data?.some(doc => doc.status === 'PROCESSING' || doc.status === 'UPLOADED');
+        return isProcessing ? 3000 : false;
+      },
     }
   );
+
+  // Real-time events for Local Development: This gives us instant UI updates locally.
+  // We wrap this in a check to ensure it ONLY runs in development.
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useInngestEventListener(
+      'app/document.processed',
+      (event) => {
+        console.log('Received document processed event:', event);
+        utils.bot.listDocuments.invalidate({ botId: bot.id });
+        toast({
+          title: 'Processing Complete',
+          description: `A document has been successfully processed.`,
+        });
+      }
+    );
+  }
+  // --- END OF FINAL FIX ---
+
 
   const createDocumentMutation = api.bot.createDocument.useMutation({
     onSuccess: (newDocument) => {
@@ -67,7 +78,6 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
         title: "Upload Successful",
         description: `"${newDocument.fileName}" is now being processed.`,
       });
-      // Invalidate to show the initial 'UPLOADED' status immediately
       utils.bot.listDocuments.invalidate({ botId: bot.id });
     },
     onError: (error) => {
@@ -161,7 +171,6 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
     }
   }
 
-  // A helper to show the spinner only while the backend is processing
   const isAnyDocumentProcessing = documents?.some(
     (doc) => doc.status === 'PROCESSING' || doc.status === 'UPLOADED'
   );
