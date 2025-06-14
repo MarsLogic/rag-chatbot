@@ -14,6 +14,8 @@ import type { PutBlobResult } from '@vercel/blob';
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+// NEW: Import our custom hook
+import { useInngestEventListener } from "@/hooks/use-inngest-event-listener";
 
 // --- TYPE DEFINITIONS ---
 type Bot = inferRouterOutputs<AppRouter>["bot"]["byId"];
@@ -23,7 +25,6 @@ interface KnowledgeBaseFormProps {
   bot: Bot;
 }
 
-// Function to format file size for display
 function formatBytes(bytes: number | null, decimals = 2) {
   if (bytes === null || bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -39,17 +40,24 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const utils = api.useUtils();
 
-  const { data: documents, isLoading: isLoadingDocuments, isRefetching } = api.bot.listDocuments.useQuery(
-    { botId: bot.id },
-    {
-      // *** THE FINAL FIX IS HERE ***
-      // The function receives the whole `query` object.
-      // We need to access the data via `query.state.data`.
-      refetchInterval: (query) => {
-        const data = query.state.data;
-        const isProcessing = data?.some(doc => doc.status === 'PROCESSING' || doc.status === 'UPLOADED');
-        return isProcessing ? 3000 : false;
-      },
+  // We are removing the refetchInterval logic from this query
+  const { data: documents, isLoading: isLoadingDocuments } = api.bot.listDocuments.useQuery({
+    botId: bot.id,
+  });
+
+  // NEW: Listen for the document processed event from our Inngest function
+  // This replaces the polling logic with a more efficient "push" model.
+  useInngestEventListener(
+    'app/document.processed',
+    (event) => {
+      console.log('Received document processed event:', event);
+      // When the event is received, invalidate the query to refetch the document list.
+      // This will update the status in the UI automatically.
+      utils.bot.listDocuments.invalidate({ botId: bot.id });
+      toast({
+        title: 'Processing Complete',
+        description: `A document has been successfully processed.`,
+      });
     }
   );
 
@@ -59,6 +67,7 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
         title: "Upload Successful",
         description: `"${newDocument.fileName}" is now being processed.`,
       });
+      // Invalidate to show the initial 'UPLOADED' status immediately
       utils.bot.listDocuments.invalidate({ botId: bot.id });
     },
     onError: (error) => {
@@ -152,6 +161,11 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
     }
   }
 
+  // A helper to show the spinner only while the backend is processing
+  const isAnyDocumentProcessing = documents?.some(
+    (doc) => doc.status === 'PROCESSING' || doc.status === 'UPLOADED'
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -192,7 +206,7 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
                   <TableHead>
                     <div className="flex items-center gap-2">
                       Status
-                      {(isRefetching) && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {isAnyDocumentProcessing && <Loader2 className="h-4 w-4 animate-spin" />}
                     </div>
                   </TableHead>
                   <TableHead>Size</TableHead>
@@ -208,7 +222,6 @@ export function KnowledgeBaseForm({ bot }: KnowledgeBaseFormProps) {
                     </TableCell>
                   </TableRow>
                 ) : documents && documents.length > 0 ? (
-                  // The explicit type here is good practice, though the root cause was elsewhere
                   documents.map((doc: Document) => (
                     <TableRow key={doc.id}>
                       <TableCell>

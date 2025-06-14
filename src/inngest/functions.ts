@@ -20,7 +20,6 @@ export const helloWorld = inngest.createFunction(
   { event: 'test/hello.world' },
   async ({ event, step }) => {
     console.log('[INNGESET] "Hello, world!" function was triggered!');
-    // THE FIX: Added a unique ID 'wait-a-moment' as the first argument
     await step.sleep('wait-a-moment', '1s');
     console.log(`[INNGESET] Event received:`, event.name);
     return { event, body: 'Hello, World!' };
@@ -37,7 +36,17 @@ export const processDocument = inngest.createFunction(
   {
     id: 'process-document-function-v2',
     concurrency: { limit: 5 },
-    onFailure: async ({ event, error }) => {
+    // --- THE FINAL FIX ---
+    // We explicitly define the types for the arguments of the onFailure handler.
+    // This tells TypeScript the exact shape of the `event` object,
+    // satisfying the strict compiler on Vercel.
+    onFailure: async ({
+      event,
+      error,
+    }: {
+      event: { data: { documentId: string } };
+      error: Error;
+    }) => {
       const { documentId } = event.data;
       console.error(`[INNGESET] Failed to process document ${documentId}`, error);
       await db
@@ -82,7 +91,6 @@ export const processDocument = inngest.createFunction(
     const documents = await step.run('parse-document-content', async () => {
       let rawText = '';
       const fileType = docInfo.fileType!;
-      console.log(`[INNGESET] Parsing document with fileType: ${fileType}`);
 
       switch (fileType) {
         case 'application/pdf':
@@ -144,7 +152,7 @@ export const processDocument = inngest.createFunction(
     });
 
     await step.sendEvent('send-processed-event', {
-      name: DOCUMENT_PROCESSED_EVENT,
+      name: 'app/document.processed',
       data: { documentId: documentId, status: 'PROCESSED' },
     });
 
