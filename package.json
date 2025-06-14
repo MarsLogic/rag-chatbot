@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "dotenv -e .env.local -- next dev",
     "dev:inngest": "inngest-cli dev",
     "dev:all": "npm-run-all --parallel dev dev:inngest",
     "build": "next build",
@@ -32,6 +32,7 @@
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "cross-env": "^7.0.3",
     "csv-parse": "^5.6.0",
     "drizzle-orm": "^0.44.2",
     "inngest": "^3.39.1",
@@ -54,6 +55,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.12.12",
+    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.21",
