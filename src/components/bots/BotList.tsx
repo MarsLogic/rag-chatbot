@@ -3,14 +3,15 @@
 "use client";
 
 import { api } from "@/lib/trpc/client";
-import { Loader2, MessageSquare } from "lucide-react";
+// FIX: Added Link for navigation and a new icon
+import Link from "next/link";
+import { Loader2, MessageSquare, MessageCircle, Settings } from "lucide-react"; 
 import { Card } from "@/components/ui/card";
 import { CreateBotDialog } from "./CreateBotDialog";
-// FIX: Import the official type helper from tRPC
 import { inferRouterOutputs } from "@trpc/server";
 import { AppRouter } from "@/server/api/routers/_app";
+import { Button } from "@/components/ui/button";
 
-// FIX: Use the recommended `inferRouterOutputs` to get the correct type for our bot list
 type BotListOutput = inferRouterOutputs<AppRouter>["bot"]["list"];
 
 export function BotList() {
@@ -39,18 +40,31 @@ export function BotList() {
     );
   }
 
-  // FIX: Explicitly type the `bots` array before mapping to resolve type errors
   const botList: BotListOutput = bots;
 
   return (
     <div className="grid gap-4">
       {botList.map((bot) => (
         <Card key={bot.id} className="flex items-center justify-between p-4">
-          <div>
+          <div className="flex-1">
             <h4 className="font-semibold">{bot.name}</h4>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground truncate max-w-md">
               {bot.description || "No description provided."}
             </p>
+          </div>
+          {/* FIX: Added a container for action buttons */}
+          <div className="flex items-center gap-2">
+            <Link href={`/chatbots/${bot.id}/chat`} passHref>
+              <Button variant="outline" size="sm">
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Chat
+              </Button>
+            </Link>
+            <Link href={`/chatbots/${bot.id}/settings`} passHref>
+              <Button variant="ghost" size="icon">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </Link>
           </div>
         </Card>
       ))}
